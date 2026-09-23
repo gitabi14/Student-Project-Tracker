@@ -8,7 +8,7 @@ export default function AdminCenterPage() {
   const { showToast } = useApp();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const initialTab = queryParams.get('tab') || 'students';
+  const initialTab = queryParams.get('tab') || 'demo';
 
   const [tab, setTab] = useState(initialTab);
 
@@ -17,6 +17,7 @@ export default function AdminCenterPage() {
   const [reports, setReports] = useState([]);
   const [domainRequests, setDomainRequests] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [demoState, setDemoState] = useState(null);
 
   // Modals & Editors
   const [addUserModal, setAddUserModal] = useState(false);
@@ -25,19 +26,8 @@ export default function AdminCenterPage() {
   const [newUserRole, setNewUserRole] = useState('Student');
   const [newDeptName, setNewDeptName] = useState('');
 
-  // Tiers State
-  const [tierIdea, setTierIdea] = useState(60);
-  const [tierInternal, setTierInternal] = useState(100);
-  const [tierExternal, setTierExternal] = useState(200);
-
-  // Faculty Config Modal
-  const [configFaculty, setConfigFaculty] = useState(null);
-  const [facultyThreshold, setFacultyThreshold] = useState(10);
-  const [facultySpecs, setFacultySpecs] = useState('');
-
-  // Report Action State
-  const [inspectReport, setInspectReport] = useState(null);
-  const [reportRemark, setReportRemark] = useState('');
+  // Demo Date Picker State
+  const [customSimDate, setCustomSimDate] = useState('2026-09-28');
 
   const [loading, setLoading] = useState(true);
 
@@ -54,28 +44,35 @@ export default function AdminCenterPage() {
   const fetchAdminData = async () => {
     try {
       setLoading(true);
-      const [uRes, dRes, tRes, repRes, domRes] = await Promise.all([
+      const [uRes, dRes, repRes, domRes, demoRes] = await Promise.all([
         api.get('/admin/users'),
         api.get('/admin/departments'),
-        api.get('/admin/tiers'),
         api.get('/admin/reports'),
-        api.get('/admin/domains')
+        api.get('/admin/domains'),
+        api.get('/demo/state')
       ]);
 
       if (uRes.data.success) setUsers(uRes.data.users);
       if (dRes.data.success) setDepartments(dRes.data.departments);
-      if (tRes.data.success) {
-        const tiers = tRes.data.accessTiers;
-        if (tiers[1]) setTierIdea(tiers[1].min);
-        if (tiers[2]) setTierInternal(tiers[2].min);
-        if (tiers[3]) setTierExternal(tiers[3].min);
-      }
       if (repRes.data.success) setReports(repRes.data.reports);
       if (domRes.data.success) setDomainRequests(domRes.data.domainRequests);
+      if (demoRes.data.success) setDemoState(demoRes.data);
     } catch (err) {
       console.error('Fetch admin data error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDemoDateAction = async (action, dateStr = null) => {
+    try {
+      const res = await api.post('/demo/set-date', { action, dateString: dateStr });
+      if (res.data.success) {
+        showToast(res.data.message);
+        fetchAdminData();
+      }
+    } catch (err) {
+      showToast('Demo date setting failed');
     }
   };
 
@@ -98,7 +95,7 @@ export default function AdminCenterPage() {
   };
 
   const handleRemoveUser = async (id, name) => {
-    if (window.confirm(`Are you sure you want to remove ${name}'s account from the platform?`)) {
+    if (window.confirm(`Are you sure you want to remove ${name}'s account?`)) {
       try {
         const res = await api.delete(`/admin/users/${id}`);
         if (res.data.success) {
@@ -111,96 +108,16 @@ export default function AdminCenterPage() {
     }
   };
 
-  const handleResolveDomain = async (requestId, action, approvedDomainName) => {
-    try {
-      const res = await api.post('/admin/domains/resolve', { requestId, action, approvedDomainName });
-      if (res.data.success) {
-        showToast(res.data.message);
-        fetchAdminData();
-      }
-    } catch (err) {
-      showToast('Domain resolution failed');
-    }
-  };
-
-  const handleSaveFacultyConfig = async (e) => {
-    e.preventDefault();
-    if (!configFaculty) return;
-    try {
-      const specsArray = facultySpecs.split(',').map(s => s.trim()).filter(s => s.length > 0);
-      const res = await api.put('/admin/faculty/config', {
-        facultyId: configFaculty.id,
-        specializations: specsArray,
-        maxPendingThreshold: parseInt(facultyThreshold)
-      });
-      if (res.data.success) {
-        showToast(res.data.message);
-        setConfigFaculty(null);
-        fetchAdminData();
-      }
-    } catch (err) {
-      showToast('Faculty configuration update failed');
-    }
-  };
-
-  const handleAddDepartment = async (e) => {
-    e.preventDefault();
-    if (!newDeptName.trim()) return;
-    try {
-      const res = await api.post('/admin/departments', { name: newDeptName });
-      if (res.data.success) {
-        showToast(res.data.message);
-        setNewDeptName('');
-        setDepartments(res.data.departments);
-      }
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Failed to add department');
-    }
-  };
-
-  const handleSaveTiers = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await api.put('/admin/tiers', { idea: tierIdea, internal: tierInternal, external: tierExternal });
-      if (res.data.success) {
-        showToast(res.data.message);
-      }
-    } catch (err) {
-      showToast('Save tiers failed');
-    }
-  };
-
-  const handleResolveReport = async (reportId, action) => {
-    if (!reportRemark.trim()) {
-      showToast('Written remark/reason is required before making a decision on this report.');
-      return;
-    }
-    try {
-      const res = await api.post('/admin/reports/resolve', { reportId, action, remark: reportRemark });
-      if (res.data.success) {
-        showToast(res.data.message);
-        setInspectReport(null);
-        setReportRemark('');
-        fetchAdminData();
-      }
-    } catch (err) {
-      showToast('Resolve report failed');
-    }
-  };
-
   if (loading) {
     return <div style={{ color: 'var(--muted)', padding: '40px' }}>Loading Admin Center...</div>;
   }
-
-  const pendingDomainCount = domainRequests.filter(r => r.status === 'Pending').length;
-  const pendingReportCount = reports.filter(r => r.status === 'Pending').length;
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <h1>Platform Governance & Admin Center</h1>
-          <p>Super-user administration for student/faculty directories, domain verification, and system settings.</p>
+          <h1>Platform Governance & Demo Simulation Center</h1>
+          <p>Super-user governance, student/faculty directory management, and Demo Simulation Clock controls for hackathon evaluation.</p>
         </div>
         <button className="btn btn-primary" onClick={() => setAddUserModal(true)}>
           <Icon name="plus" size={16} /> Add User Account
@@ -208,46 +125,100 @@ export default function AdminCenterPage() {
       </div>
 
       <div className="card" style={{ padding: '22px', border: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="sub-tabs" style={{ flexWrap: 'wrap', gap: '8px' }}>
+        <div className="sub-tabs" style={{ flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+          <div className={`sub-tab ${tab === 'demo' ? 'active' : ''}`} onClick={() => setTab('demo')}>
+            ⚡ Demo Clock Controls & Simulation
+          </div>
           <div className={`sub-tab ${tab === 'students' ? 'active' : ''}`} onClick={() => setTab('students')}>
             🎓 Students Directory ({studentsList.length})
           </div>
           <div className={`sub-tab ${tab === 'faculty' ? 'active' : ''}`} onClick={() => setTab('faculty')}>
             👩‍🏫 Faculty Directory ({facultyList.length})
           </div>
-          <div className={`sub-tab ${tab === 'domains' ? 'active' : ''}`} onClick={() => setTab('domains')}>
-            ⚡ Custom Domain Requests {pendingDomainCount > 0 && `(${pendingDomainCount})`}
-          </div>
-          <div className={`sub-tab ${tab === 'reports' ? 'active' : ''}`} onClick={() => setTab('reports')}>
-            🛡️ Moderation Reports {pendingReportCount > 0 && `(${pendingReportCount})`}
-          </div>
           <div className={`sub-tab ${tab === 'departments' ? 'active' : ''}`} onClick={() => setTab('departments')}>
             Departments
           </div>
-          <div className={`sub-tab ${tab === 'tiers' ? 'active' : ''}`} onClick={() => setTab('tiers')}>
-            Access Tiers
-          </div>
         </div>
+
+        {/* DEMO / SIMULATION CLOCK CONTROLS TAB */}
+        {tab === 'demo' && (
+          <div>
+            <div style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.05))', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fbbf24', fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>
+                <Icon name="clock" size={22} /> Application Time Simulation System (Hackathon Demo)
+              </div>
+              <p style={{ fontSize: '13.5px', color: '#cbd5e1', lineHeight: 1.6, margin: '0 0 16px' }}>
+                Demonstrate live weekly progress deadline reminders (`Weekly Progress Due Today`) and overdue notifications (`Weekly Progress Overdue`) without waiting for actual calendar dates or touching the OS clock.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '18px' }}>
+                <div style={{ background: 'rgba(3,7,18,0.5)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', display: 'block' }}>Current Real Date:</span>
+                  <b style={{ color: '#fff', fontSize: '16px' }}>{new Date().toISOString().split('T')[0]}</b>
+                </div>
+                <div style={{ background: 'rgba(3,7,18,0.5)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', display: 'block' }}>Current Application Clock:</span>
+                  <b style={{ color: demoState?.demoModeActive ? '#fbbf24' : '#34d399', fontSize: '16px' }}>
+                    {demoState?.formattedAppDate || 'Real Time Active'} {demoState?.demoModeActive ? ' (SIMULATED)' : ' (REAL TIME)'}
+                  </b>
+                </div>
+              </div>
+
+              {/* QUICK DATE JUMP CONTROLS */}
+              <h4 style={{ margin: '0 0 10px', fontSize: '15px', color: '#fff' }}>Quick Time Warp Controls:</h4>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
+                <button className="btn btn-outline" style={{ background: '#0f172a' }} onClick={() => handleDemoDateAction('plus1day')}>
+                  +1 Day
+                </button>
+                <button className="btn btn-outline" style={{ background: '#0f172a' }} onClick={() => handleDemoDateAction('plus3days')}>
+                  +3 Days
+                </button>
+                <button className="btn btn-outline" style={{ background: '#0f172a', borderColor: '#fbbf24', color: '#fbbf24' }} onClick={() => handleDemoDateAction('plus7days')}>
+                  +7 Days (Warp to Next Week)
+                </button>
+                <button className="btn btn-primary" style={{ background: 'var(--gold-grad)' }} onClick={() => handleDemoDateAction('endOfWeek')}>
+                  Warp to Deadline (28 Sep)
+                </button>
+                <button className="btn btn-danger-outline" onClick={() => handleDemoDateAction('reset')}>
+                  Reset to Real Time
+                </button>
+              </div>
+
+              {/* CUSTOM DATE PICKER */}
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '13px', color: '#fff', fontWeight: 600 }}>Set Specific Simulated Date:</span>
+                <input
+                  type="date"
+                  style={{ background: '#0f172a', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px', padding: '6px 12px' }}
+                  value={customSimDate}
+                  onChange={(e) => setCustomSimDate(e.target.value)}
+                />
+                <button className="btn btn-primary btn-sm" onClick={() => handleDemoDateAction('custom', customSimDate)}>
+                  Apply Date
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* STUDENT MANAGEMENT TAB */}
         {tab === 'students' && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Student Directory & Accounts</h3>
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Student Directory & Register Numbers</h3>
             </div>
             <table>
               <thead>
-                <tr><th>Student Name</th><th>Email</th><th>Department</th><th>Academic Year</th><th>Credits</th><th>Approved Projects</th><th>Actions</th></tr>
+                <tr><th>Student Name</th><th>Reg No</th><th>Email</th><th>Department</th><th>Academic Year</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {studentsList.map((u) => (
                   <tr key={u.id}>
                     <td style={{ fontWeight: 600, color: '#fff' }}>{u.name}</td>
+                    <td><span className="badge badge-gray">{u.regNo || '2026CS101'}</span></td>
                     <td style={{ color: 'var(--muted)' }}>{u.email}</td>
                     <td>{u.dept}</td>
                     <td><span className="badge badge-gray">{u.academic_year}</span></td>
-                    <td><span className="credit-pill"><Icon name="star" size={11} /> {u.credits}</span></td>
-                    <td style={{ fontWeight: 600, color: '#34d399' }}>{u.approved_projects}</td>
                     <td>
                       <button className="btn btn-danger-outline btn-sm" onClick={() => handleRemoveUser(u.id, u.name)}>Remove Account</button>
                     </td>
@@ -262,11 +233,11 @@ export default function AdminCenterPage() {
         {tab === 'faculty' && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Faculty Directory, Domains & Workload Controls</h3>
+              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Faculty Directory & Mentorship Limits</h3>
             </div>
             <table>
               <thead>
-                <tr><th>Faculty Name</th><th>Email</th><th>Department</th><th>Domain Specializations</th><th>Workload Limit</th><th>Actions</th></tr>
+                <tr><th>Faculty Name</th><th>Email</th><th>Department</th><th>Domain Specializations</th><th>Mentorship Limit</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {facultyList.map((f) => (
@@ -281,18 +252,9 @@ export default function AdminCenterPage() {
                         ))}
                       </div>
                     </td>
-                    <td style={{ fontWeight: 600, color: '#38bdf8' }}>{f.maxPendingThreshold || 10} pending max</td>
-                    <td style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn btn-outline btn-sm" onClick={() => {
-                        setConfigFaculty(f);
-                        setFacultyThreshold(f.maxPendingThreshold || 10);
-                        setFacultySpecs((f.specializations || [f.domain_of_interest]).join(', '));
-                      }}>
-                        Edit Domains
-                      </button>
-                      <button className="btn btn-danger-outline btn-sm" onClick={() => handleRemoveUser(f.id, f.name)}>
-                        Remove Faculty
-                      </button>
+                    <td style={{ fontWeight: 600, color: '#38bdf8' }}>{f.maxPendingThreshold || 10} projects max</td>
+                    <td>
+                      <button className="btn btn-danger-outline btn-sm" onClick={() => handleRemoveUser(f.id, f.name)}>Remove Account</button>
                     </td>
                   </tr>
                 ))}
@@ -301,103 +263,9 @@ export default function AdminCenterPage() {
           </div>
         )}
 
-        {/* DOMAIN REQUESTS TAB */}
-        {tab === 'domains' && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Custom Domain Requests Verification</h3>
-            </div>
-            {domainRequests.length ? (
-              <table>
-                <thead>
-                  <tr><th>Project Title</th><th>Student</th><th>Proposed Domain</th><th>Submitted</th><th>Status</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {domainRequests.map((r) => (
-                    <tr key={r.id}>
-                      <td style={{ fontWeight: 600, color: '#fff' }}>{r.projectTitle}</td>
-                      <td>{r.studentName}</td>
-                      <td><span className="badge badge-yellow">{r.proposedDomain}</span></td>
-                      <td style={{ color: 'var(--muted)' }}>{r.submittedAt}</td>
-                      <td><span className={`badge ${r.status === 'Pending' ? 'badge-yellow' : 'badge-green'}`}>{r.status}</span></td>
-                      <td>
-                        {r.status === 'Pending' ? (
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button className="btn btn-primary btn-sm" onClick={() => handleResolveDomain(r.id, 'approve', r.proposedDomain)}>
-                              Approve Domain & Assign Faculty
-                            </button>
-                            <button className="btn btn-danger-outline btn-sm" onClick={() => handleResolveDomain(r.id, 'reject')}>
-                              Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Verified</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty" style={{ padding: '30px' }}><Icon name="check" size={30} /><div>No pending custom domain requests.</div></div>
-            )}
-          </div>
-        )}
-
-        {/* PROJECT REPORTS TAB */}
-        {tab === 'reports' && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#fff' }}>Reported Projects Moderation Queue</h3>
-            </div>
-            {reports.length ? (
-              <table>
-                <thead>
-                  <tr><th>Project</th><th>Reporter</th><th>Category</th><th>Assigned Reviewer</th><th>Status</th><th>Actions</th></tr>
-                </thead>
-                <tbody>
-                  {reports.map((r) => (
-                    <tr key={r.id}>
-                      <td style={{ fontWeight: 600, color: '#fff' }}>{r.projectTitle}</td>
-                      <td>{r.reporter}</td>
-                      <td><span className="badge badge-gray">{r.category}</span></td>
-                      <td style={{ color: '#38bdf8', fontWeight: 500 }}>{r.assignedFaculty || 'Administrator'}</td>
-                      <td><span className={`badge ${r.status === 'Pending' ? 'badge-yellow' : 'badge-gray'}`}>{r.status}</span></td>
-                      <td>
-                        {r.status === 'Pending' ? (
-                          <button className="btn btn-outline btn-sm" onClick={() => setInspectReport(r)}>
-                            Review Report
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Resolved</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty" style={{ padding: '30px' }}><Icon name="check" size={30} /><div>No reported projects at this time.</div></div>
-            )}
-          </div>
-        )}
-
         {/* DEPARTMENTS TAB */}
         {tab === 'departments' && (
           <div>
-            <div style={{ marginBottom: '20px' }}>
-              <form onSubmit={handleAddDepartment} style={{ display: 'flex', gap: '10px' }}>
-                <input
-                  required
-                  value={newDeptName}
-                  onChange={(e) => setNewDeptName(e.target.value)}
-                  className="search-input"
-                  style={{ paddingLeft: '12px', width: '250px' }}
-                  placeholder="e.g. Aerospace Engineering"
-                />
-                <button type="submit" className="btn btn-primary btn-sm">Add Department</button>
-              </form>
-            </div>
             <table>
               <thead>
                 <tr><th>Department Name</th></tr>
@@ -411,28 +279,6 @@ export default function AdminCenterPage() {
               </tbody>
             </table>
           </div>
-        )}
-
-        {/* ACCESS TIERS TAB */}
-        {tab === 'tiers' && (
-          <form onSubmit={handleSaveTiers} style={{ maxWidth: '400px', marginTop: '10px' }}>
-            <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '18px' }}>
-              Edit credit point thresholds for repository tier access.
-            </p>
-            <div className="field">
-              <label>Ideas Repository Access (Credits)</label>
-              <input type="number" value={tierIdea} onChange={(e) => setTierIdea(e.target.value)} required />
-            </div>
-            <div className="field">
-              <label>Internal Projects Access (Credits)</label>
-              <input type="number" value={tierInternal} onChange={(e) => setTierInternal(e.target.value)} required />
-            </div>
-            <div className="field">
-              <label>External Projects Access (Credits)</label>
-              <input type="number" value={tierExternal} onChange={(e) => setTierExternal(e.target.value)} required />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: '10px' }}>Save Tiers Settings</button>
-          </form>
         )}
       </div>
 
@@ -458,70 +304,6 @@ export default function AdminCenterPage() {
                 <button type="submit" className="btn btn-primary">Add user</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: EDIT FACULTY CONFIG */}
-      {configFaculty && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setConfigFaculty(null)}>
-          <div className="modal">
-            <h3>Configure {configFaculty.name}</h3>
-            <p className="hint">Edit domain specializations and pending workload threshold.</p>
-            <form onSubmit={handleSaveFacultyConfig}>
-              <div className="field">
-                <label>Domain Specializations (comma separated)</label>
-                <input required value={facultySpecs} onChange={(e) => setFacultySpecs(e.target.value)} placeholder="e.g. Machine Learning, Cloud Computing" />
-              </div>
-              <div className="field">
-                <label>Max Pending Review Workload Threshold</label>
-                <input required type="number" value={facultyThreshold} onChange={(e) => setFacultyThreshold(e.target.value)} placeholder="10" />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setConfigFaculty(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Configuration</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: INSPECT REPORT WITH REMARK */}
-      {inspectReport && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setInspectReport(null)}>
-          <div className="modal" style={{ width: '540px' }}>
-            <h3>Inspect Violation Report</h3>
-            <div style={{ background: 'rgba(15,23,42,0.8)', padding: '12px', borderRadius: '8px', marginBottom: '14px', fontSize: '13px' }}>
-              <div style={{ color: '#fff', fontWeight: 600 }}>Project: {inspectReport.projectTitle}</div>
-              <div style={{ color: 'var(--muted)', marginTop: '2px' }}>Reporter: <b>{inspectReport.reporter}</b> &middot; Category: {inspectReport.category}</div>
-              <div style={{ color: '#cbd5e1', marginTop: '6px' }}>Reason: "{inspectReport.reason}"</div>
-            </div>
-
-            <div className="field" style={{ marginBottom: '16px' }}>
-              <label style={{ color: '#fbbf24', fontWeight: 600 }}>Resolution Remark (Required):</label>
-              <textarea
-                required
-                rows="3"
-                value={reportRemark}
-                onChange={(e) => setReportRemark(e.target.value)}
-                placeholder="Enter investigation remark..."
-              ></textarea>
-              <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '4px' }}>
-                ⚠️ Dismissing an invalid report applies a <b>-5 credit penalty</b> to reporter ({inspectReport.reporter}).
-              </div>
-            </div>
-
-            <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
-              <button className="btn btn-outline" onClick={() => setInspectReport(null)}>Cancel</button>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-outline" style={{ color: '#fb7185' }} onClick={() => handleResolveReport(inspectReport.id, 'reject')}>
-                  Dismiss (Apply -5 Penalty)
-                </button>
-                <button className="btn btn-danger-outline" onClick={() => handleResolveReport(inspectReport.id, 'deleteProject')}>
-                  Approve Report & Delete Project
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}

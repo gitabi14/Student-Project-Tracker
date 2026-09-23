@@ -50,6 +50,9 @@ exports.getProfile = (req, res) => {
     const inReview = dataStore.projects.filter(p => p.author.toLowerCase() === user.name.toLowerCase() && (p.status === 'In Review' || p.status === 'Pending Guide'));
 
     const { password: _, ...userClean } = user;
+    userClean.credits = dataStore.getUserTotalCredits(user.email);
+    userClean.creditHistory = dataStore.getUserCreditHistory(user.email);
+
     return res.json({
       success: true,
       user: userClean,

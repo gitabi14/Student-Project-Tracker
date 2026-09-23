@@ -6,16 +6,16 @@ import api from '../../services/api';
 import Icon from '../common/Icons';
 
 const pageTitles = {
-  '/dashboard': 'Dashboard',
-  '/projects': 'Repository',
-  '/ideas': 'Ideas',
-  '/collaboration': 'Collaboration Center',
-  '/leaderboard': 'Leaderboard',
-  '/reviews': 'Reviews',
-  '/guides': 'Guide Requests',
-  '/analytics': 'Analytics',
-  '/admin': 'Admin Center',
-  '/profile': 'My Profile'
+  '/dashboard': 'Project Lifecycle Dashboard',
+  '/projects': 'Project Workspaces & Repositories',
+  '/ideas': 'Project Ideas',
+  '/collaboration': 'Team Collaboration Center',
+  '/leaderboard': 'Student Performance & Audit',
+  '/reviews': 'Faculty Evaluation & Reviews',
+  '/guides': 'Faculty Mentorship Requests',
+  '/analytics': 'Platform Analytics',
+  '/admin': 'Admin Governance & Demo Clock',
+  '/profile': 'My Profile & Audit'
 };
 
 export default function Shell({ children }) {
@@ -26,12 +26,14 @@ export default function Shell({ children }) {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [demoState, setDemoState] = useState(null);
   const notifRef = useRef(null);
 
   const role = currentUser ? currentUser.role : 'Student';
 
   useEffect(() => {
     fetchNotifications();
+    fetchDemoState();
   }, [location.pathname]);
 
   const fetchNotifications = async () => {
@@ -45,13 +47,20 @@ export default function Shell({ children }) {
     }
   };
 
+  const fetchDemoState = async () => {
+    try {
+      const res = await api.get('/demo/state');
+      if (res.data.success) {
+        setDemoState(res.data);
+      }
+    } catch (err) {}
+  };
+
   const handleNotifClick = async (n) => {
     try {
       await api.put(`/admin/notifications/${n.id}/read`);
       setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
-    } catch (err) {
-      // ignore
-    }
+    } catch (err) {}
     setNotifOpen(false);
     if (n.route) {
       navigate(n.route);
@@ -76,11 +85,11 @@ export default function Shell({ children }) {
   const getNavConfig = () => {
     if (role === 'Student') {
       return [{
-        section: 'Student', items: [
+        section: 'Student Project Operating System', items: [
           { path: '/dashboard', label: 'Dashboard', icon: 'home' },
-          { path: '/projects', label: 'Projects', icon: 'folder' },
-          { path: '/ideas', label: 'Ideas', icon: 'bulb' },
-          { path: '/collaboration', label: 'Collaboration', icon: 'users' },
+          { path: '/projects', label: 'My Projects & Workspaces', icon: 'folder' },
+          { path: '/ideas', label: 'Project Ideas', icon: 'bulb' },
+          { path: '/collaboration', label: 'Team Collaboration', icon: 'users' },
           { path: '/leaderboard', label: 'Leaderboard', icon: 'trophy' },
           { path: '/profile', label: 'My Profile', icon: 'user' },
         ]
@@ -88,11 +97,11 @@ export default function Shell({ children }) {
     }
     if (role === 'Faculty') {
       return [{
-        section: 'Faculty', items: [
-          { path: '/dashboard', label: 'Dashboard', icon: 'home' },
-          { path: '/projects', label: 'Repository', icon: 'folder' },
-          { path: '/reviews', label: 'Reviews', icon: 'book' },
-          { path: '/guides', label: 'Guide Requests', icon: 'chat' },
+        section: 'Faculty Mentorship & Evaluation', items: [
+          { path: '/dashboard', label: 'Mentorship Dashboard', icon: 'home' },
+          { path: '/projects', label: 'All Project Workspaces', icon: 'folder' },
+          { path: '/reviews', label: 'Weekly Reports & Reviews', icon: 'book' },
+          { path: '/guides', label: 'Faculty Guide Requests', icon: 'chat' },
           { path: '/leaderboard', label: 'Leaderboard', icon: 'trophy' },
           { path: '/profile', label: 'My Profile', icon: 'user' },
         ]
@@ -100,11 +109,11 @@ export default function Shell({ children }) {
     }
     // Administrator Super Access
     return [{
-      section: 'Administration & Management', items: [
+      section: 'Administration & Governance', items: [
         { path: '/dashboard', label: 'Dashboard', icon: 'home' },
-        { path: '/admin', label: 'Admin Center', icon: 'usercog' },
-        { path: '/projects', label: 'Repository', icon: 'folder' },
-        { path: '/reviews', label: 'Reviews Queue', icon: 'book' },
+        { path: '/admin', label: 'Admin & Demo Clock', icon: 'usercog' },
+        { path: '/projects', label: 'Project Workspaces', icon: 'folder' },
+        { path: '/reviews', label: 'Weekly Reviews Queue', icon: 'book' },
         { path: '/guides', label: 'Guide Requests', icon: 'chat' },
         { path: '/ideas', label: 'Ideas', icon: 'bulb' },
         { path: '/collaboration', label: 'Collaboration', icon: 'users' },
@@ -123,12 +132,13 @@ export default function Shell({ children }) {
       {mobileSidebarOpen && (
         <div className="scrim" onClick={() => setMobileSidebarOpen(false)}></div>
       )}
+
       <aside className={sidebarClass}>
         <div className="brand-row">
           <div className="brand-mark"><Icon name="book" size={18} /></div>
           <div className="brand-text">
             <div className="brand">ProjectHub</div>
-            <div className="brand-sub">SHOWCASE PLATFORM</div>
+            <div className="brand-sub">LIFECYCLE PLATFORM</div>
           </div>
         </div>
         {getNavConfig().map((sec, idx) => (
@@ -159,7 +169,43 @@ export default function Shell({ children }) {
           <span className="signout-label">Sign out</span>
         </a>
       </aside>
+
       <div className="main-col">
+        {/* DEMO MODE SIMULATION CLOCK BANNER */}
+        {demoState?.demoModeActive && (
+          <div style={{
+            background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+            color: '#030712',
+            padding: '8px 24px',
+            fontSize: '13px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+            boxShadow: '0 4px 12px rgba(245, 158, 11, 0.3)',
+            zIndex: 30
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="bell" size={16} />
+              <span>DEMO MODE — Simulated Date: <b>{demoState.formattedAppDate}</b></span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', background: 'rgba(0,0,0,0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+                Application Time Simulation Active
+              </span>
+              <button
+                onClick={() => navigate('/admin?tab=demo')}
+                style={{
+                  background: '#030712', color: '#fbbf24', border: 'none', borderRadius: '6px',
+                  padding: '3px 10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                Time Warp Controls
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="topbar">
           <div className="topbar-left">
             <button className="icon-btn" onClick={toggleSidebar}>
@@ -189,12 +235,12 @@ export default function Shell({ children }) {
 
               {notifOpen && (
                 <div className="card" style={{
-                  position: 'absolute', right: 0, top: '40px', width: '320px', zIndex: 1000,
+                  position: 'absolute', right: 0, top: '40px', width: '340px', zIndex: 1000,
                   padding: '14px', border: '1px solid rgba(255,255,255,0.1)', background: '#0f172a',
                   boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <b style={{ fontSize: '14px', color: '#fff' }}>Notifications</b>
+                    <b style={{ fontSize: '14px', color: '#fff' }}>Notifications Feed</b>
                     <span style={{ fontSize: '11px', color: 'var(--muted)' }}>{notifications.length} total</span>
                   </div>
                   <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -204,15 +250,15 @@ export default function Shell({ children }) {
                         onClick={() => handleNotifClick(n)}
                         style={{
                           display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-                          padding: '10px', borderRadius: '8px', background: n.read ? 'transparent' : 'rgba(99,102,241,0.1)',
+                          padding: '10px', borderRadius: '8px', background: n.read ? 'transparent' : 'rgba(99,102,241,0.12)',
                           cursor: 'pointer', border: '1px solid rgba(255,255,255,0.04)'
                         }}
                       >
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                           <Icon name={n.icon || 'bell'} size={15} />
                           <div>
-                            <div style={{ fontSize: '12px', color: n.read ? 'var(--muted)' : '#fff', fontWeight: n.read ? 400 : 600 }}>{n.text}</div>
-                            <div style={{ fontSize: '10px', color: 'var(--muted-2)', marginTop: '2px' }}>{n.time || 'Just now'}</div>
+                            <div style={{ fontSize: '12px', color: n.read ? 'var(--muted)' : '#fff', fontWeight: n.read ? 400 : 600, lineHeight: 1.35 }}>{n.text}</div>
+                            <div style={{ fontSize: '10px', color: 'var(--muted-2)', marginTop: '3px' }}>{n.time ? n.time.split('T')[0] : 'Just now'}</div>
                           </div>
                         </div>
                         <button
@@ -242,6 +288,7 @@ export default function Shell({ children }) {
             </div>
           </div>
         </div>
+
         <div className="page">{children}</div>
       </div>
     </div>

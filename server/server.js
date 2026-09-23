@@ -13,6 +13,9 @@ const guideRoutes = require('./routes/guideRoutes');
 const leaderboardRoutes = require('./routes/leaderboardRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const lifecycleRoutes = require('./routes/lifecycleRoutes');
+const demoRoutes = require('./routes/demoRoutes');
+const ideaRoutes = require('./routes/ideaRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -46,12 +49,15 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/ideas', ideaRoutes);
 app.use('/api/collaboration', collabRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/guides', guideRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/lifecycle', lifecycleRoutes);
+app.use('/api/demo', demoRoutes);
 
 // Single Page Application (SPA) Fallback Route for Frontend
 app.get('*', (req, res, next) => {

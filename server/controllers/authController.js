@@ -138,3 +138,33 @@ exports.getMe = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
+exports.getDemoUsers = (req, res) => {
+  try {
+    const students = dataStore.users.filter(u => u.role === 'Student').map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      regNo: u.regNo || `2026CS10${u.id}`,
+      dept: u.dept,
+      academic_year: u.academic_year
+    }));
+
+    const faculty = dataStore.users.filter(u => u.role === 'Faculty').map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      dept: u.dept,
+      academic_year: u.academic_year,
+      specializations: u.specializations || [u.domain_of_interest]
+    }));
+
+    return res.json({
+      success: true,
+      students,
+      faculty
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import api from '../services/api';
 import Icon from '../components/common/Icons';
@@ -8,6 +8,7 @@ import { EmptyState } from '../components/common/Toast';
 
 export default function ReviewsPage() {
   const { showToast } = useApp();
+  const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialTab = queryParams.get('tab') || 'submissions';
@@ -49,6 +50,10 @@ export default function ReviewsPage() {
   };
 
   const handleReviewAction = async (id, approve) => {
+    if (!feedback || !feedback.trim()) {
+      showToast('Faculty review comment is required before taking action.');
+      return;
+    }
     try {
       const res = await api.post('/reviews/action', { id, approve, feedback });
       if (res.data.success) {
@@ -87,22 +92,22 @@ export default function ReviewsPage() {
     <div>
       <div className="page-head">
         <div>
-          <h1>Faculty Evaluation & Review Queue</h1>
-          <p>Inspect academic project submissions, peer enhancements, and assigned violation reports.</p>
+          <h1>Faculty Evaluation & Weekly Reports Review</h1>
+          <p>Inspect student weekly progress reports, milestone updates, and assigned violation reports.</p>
         </div>
       </div>
 
       <div className="card" style={{ padding: '22px', border: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="sub-tabs" style={{ marginBottom: '20px' }}>
           <div className={`sub-tab ${tab === 'submissions' ? 'active' : ''}`} onClick={() => setTab('submissions')}>
-            Project Submissions ({reviews.length})
+            Weekly Reports & Submissions ({reviews.length})
           </div>
           <div className={`sub-tab ${tab === 'reports' ? 'active' : ''}`} onClick={() => setTab('reports')}>
             🛡️ Content Violation Reports {pendingReportsCount > 0 && `(${pendingReportsCount})`}
           </div>
         </div>
 
-        {/* TAB: PROJECT SUBMISSIONS */}
+        {/* TAB: PROJECT SUBMISSIONS / WEEKLY REPORTS */}
         {tab === 'submissions' && (
           <div>
             {loading ? (
@@ -111,7 +116,7 @@ export default function ReviewsPage() {
               <table>
                 <thead>
                   <tr>
-                    <th>Submission Title</th>
+                    <th>Project / Submission Title</th>
                     <th>Student Author</th>
                     <th>Type</th>
                     <th>Domain Category</th>
@@ -130,11 +135,11 @@ export default function ReviewsPage() {
                       <td style={{ color: 'var(--muted)' }}>{r.category}</td>
                       <td style={{ color: 'var(--muted)' }}>{r.submitted}</td>
                       <td style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn btn-outline btn-sm" onClick={() => setInspectItem(r)}>
-                          <Icon name="eye" size={14} /> Inspect Details
+                        <button className="btn btn-outline btn-sm" onClick={() => navigate('/projects')}>
+                          <Icon name="eye" size={14} /> Open Project Workspace
                         </button>
-                        <button className="btn btn-primary btn-sm" onClick={() => { setInspectItem(r); }}>
-                          <Icon name="check" size={14} /> Review & Approve
+                        <button className="btn btn-primary btn-sm" onClick={() => setInspectItem(r)}>
+                          <Icon name="check" size={14} /> Review & Approve Report
                         </button>
                       </td>
                     </tr>
@@ -142,7 +147,7 @@ export default function ReviewsPage() {
                 </tbody>
               </table>
             ) : (
-              <EmptyState msg="All caught up — no pending project reviews assigned to you." ic="check" />
+              <EmptyState msg="All caught up — no pending weekly reports assigned to you." ic="check" />
             )}
           </div>
         )}
@@ -222,7 +227,7 @@ export default function ReviewsPage() {
 
             {inspectItem.tech && inspectItem.tech.length > 0 && (
               <div style={{ marginBottom: '18px' }}>
-                <b>Technologies Used:</b>
+                <b style={{ color: '#fff', fontSize: '13px' }}>Technologies Used:</b>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
                   {inspectItem.tech.map((t, idx) => (
                     <span key={idx} className="badge badge-gray">{t}</span>
@@ -231,23 +236,44 @@ export default function ReviewsPage() {
               </div>
             )}
 
-            <div style={{ marginBottom: '18px' }}>
-              <b>Verified Repository & Link Materials:</b>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px', fontSize: '13px' }}>
-                {inspectItem.github && <a href={inspectItem.github} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="folder" size={14} /> Source Code (GitHub)</a>}
-                {inspectItem.doc && <a href={inspectItem.doc} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="book" size={14} /> Report & Documentation</a>}
-                {inspectItem.ppt && <a href={inspectItem.ppt} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="award" size={14} /> Presentation (PPT)</a>}
-                {inspectItem.codeLink && <a href={inspectItem.codeLink} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="folder" size={14} /> Pull Request Link</a>}
+            <h5 style={{ margin: '14px 0 8px', color: '#fff', fontSize: '13.5px' }}>Project Deliverable Artifacts & Links:</h5>
+            <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '18px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '12.5px' }}>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>GitHub Repository: </span>
+                {inspectItem.github ? <a href={inspectItem.github} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>Link</a> : <span style={{ color: '#94a3b8' }}>Not provided</span>}
+              </div>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Documentation SRS: </span>
+                {inspectItem.doc ? <a href={inspectItem.doc} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>Link</a> : <span style={{ color: '#94a3b8' }}>Not provided</span>}
+              </div>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Presentation PPT: </span>
+                {inspectItem.ppt ? <a href={inspectItem.ppt} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>Link</a> : <span style={{ color: '#94a3b8' }}>Not provided</span>}
+              </div>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Demo Video: </span>
+                {inspectItem.demo ? <a href={inspectItem.demo} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>Link</a> : <span style={{ color: '#94a3b8' }}>Not provided</span>}
+              </div>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Vercel/Live Deployment: </span>
+                {inspectItem.vercel ? <a href={inspectItem.vercel} target="_blank" rel="noreferrer" style={{ color: '#38bdf8' }}>Link</a> : <span style={{ color: '#94a3b8' }}>Not provided</span>}
+              </div>
+              <div>
+                <span style={{ color: 'var(--muted)' }}>Uploaded Files: </span>
+                {inspectItem.files && inspectItem.files.length > 0 ? (
+                  <span>{inspectItem.files.length} file(s) attached</span>
+                ) : <span style={{ color: '#94a3b8' }}>Not provided</span>}
               </div>
             </div>
 
             <div className="field" style={{ marginBottom: '18px' }}>
-              <label style={{ fontWeight: 600, color: '#fff' }}>Faculty Feedback / Change Requests (Optional):</label>
+              <label style={{ fontWeight: 600, color: '#fff' }}>Faculty Review Comment / Feedback *</label>
               <textarea
                 rows="2"
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
-                placeholder="Provide constructive notes or requirements for the student..."
+                placeholder="Enter mandatory review feedback or requirements for student team..."
+                required
               ></textarea>
             </div>
 
@@ -255,10 +281,10 @@ export default function ReviewsPage() {
               <button type="button" className="btn btn-outline" onClick={() => setInspectItem(null)}>Cancel</button>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button className="btn btn-danger-outline" onClick={() => handleReviewAction(inspectItem.id, false)}>
-                  <Icon name="x" size={14} /> Decline / Request Changes
+                  <Icon name="x" size={14} /> Request Changes
                 </button>
                 <button className="btn btn-primary" onClick={() => handleReviewAction(inspectItem.id, true)}>
-                  <Icon name="check" size={14} /> Approve Submission
+                  <Icon name="check" size={14} /> Approve Submission Report
                 </button>
               </div>
             </div>
@@ -301,18 +327,15 @@ export default function ReviewsPage() {
                 rows="3"
                 value={reportRemark}
                 onChange={(e) => setReportRemark(e.target.value)}
-                placeholder="State your findings regarding this report..."
+                placeholder="Enter investigation remark..."
               ></textarea>
-              <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '4px' }}>
-                ⚠️ <b>Note:</b> Dismissing an invalid/fake report automatically deducts a <b>-5 credit penalty</b> from reporter ({inspectReport.reporter}).
-              </div>
             </div>
 
             <div className="modal-actions" style={{ justifyContent: 'space-between' }}>
               <button className="btn btn-outline" onClick={() => setInspectReport(null)}>Cancel</button>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-outline" style={{ borderColor: 'rgba(244,63,94,0.4)', color: '#fb7185' }} onClick={() => handleResolveReport(inspectReport.id, 'reject')}>
-                  Dismiss (Fake Report - Apply -5 Penalty)
+                <button className="btn btn-outline" style={{ color: '#fb7185' }} onClick={() => handleResolveReport(inspectReport.id, 'reject')}>
+                  Dismiss Report
                 </button>
                 <button className="btn btn-danger-outline" onClick={() => handleResolveReport(inspectReport.id, 'deleteProject')}>
                   Approve Report & Delete Project

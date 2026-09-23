@@ -27,6 +27,14 @@ exports.getReviews = (req, res) => {
 exports.reviewAction = (req, res) => {
   try {
     const { id, approve, feedback } = req.body;
+
+    if (!feedback || !feedback.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Faculty review comment is required before taking action.'
+      });
+    }
+
     const r = dataStore.reviewQueue.find(x => x.id === parseInt(id));
 
     if (!r) {

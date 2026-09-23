@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import api from '../services/api';
@@ -7,66 +7,76 @@ import Icon from '../components/common/Icons';
 import { BadgeType, BadgeStatus } from '../components/common/Badge';
 import { EmptyState } from '../components/common/Toast';
 
-const accessTiers = [
-  { min: 0, label: 'No Repository Access' },
-  { min: 60, label: 'Idea Repository' },
-  { min: 100, label: 'Internal Projects' },
-  { min: 200, label: 'External Projects' }
-];
-
-function validateUrl(str) {
-  if (!str || !str.trim()) return true;
-  const s = str.trim();
-  if (s.includes(' ') || s.length < 3) return false;
-  return true;
-}
-
 export default function ProjectsPage() {
   const { currentUser } = useAuth();
   const { showToast } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const queryParams = new URLSearchParams(location.search);
+  const initialAction = queryParams.get('action');
 
   const [projects, setProjects] = useState([]);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('popular');
+  const [domainFilter, setDomainFilter] = useState('all');
   const [loading, setLoading] = useState(true);
 
-  // Modals
-  const [modal, setModal] = useState(null); // 'submit' | 'locked' | 'detail' | 'enhancement' | 'report'
-  const [submitType, setSubmitType] = useState('Internal');
+  // Modals & Active State
+  const [modal, setModal] = useState(initialAction === 'register' ? 'register' : null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [lockedInfo, setLockedInfo] = useState({ type: '', req: 60 });
-  const [commentText, setCommentText] = useState('');
+  const [detailTab, setDetailTab] = useState('overview'); // 'overview' | 'team' | 'milestones' | 'weekly' | 'artifacts' | 'feedback'
 
-  // Submit form state
-  const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Machine Learning');
-  const [tech, setTech] = useState('');
-  const [abstract, setAbstract] = useState('');
-  const [github, setGithub] = useState('');
-  const [doc, setDoc] = useState('');
-  const [ppt, setPpt] = useState('');
-  const [cert, setCert] = useState('');
-  const [demo, setDemo] = useState('');
-  const [vercel, setVercel] = useState('');
+  // Multi-step Registration Wizard State
+  const [regStep, setRegStep] = useState(1); // 1: Details, 2: Team, 3: Faculty Guide, 4: Milestones
+  const [regType, setRegType] = useState('Internal');
+  const [regTitle, setRegTitle] = useState('');
+  const [regCategory, setRegCategory] = useState('Machine Learning');
+  const [regTech, setRegTech] = useState('');
+  const [regAbstract, setRegAbstract] = useState('');
+  const [regGithub, setRegGithub] = useState('');
+  const [regDoc, setRegDoc] = useState('');
+  const [regPpt, setRegPpt] = useState('');
+  const [regDemo, setRegDemo] = useState('');
+  const [regVercel, setRegVercel] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
 
-  // Inline URL errors
-  const [urlErrors, setUrlErrors] = useState({});
+  // Step 2: Team Members
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [studentSearchResults, setStudentSearchResults] = useState([]);
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState([
+    { name: currentUser?.name || 'Kavitha Sundaram', regNo: currentUser?.regNo || '2026CS101', role: 'Team Leader', dept: currentUser?.dept || 'Computer Science', email: currentUser?.email || 'kavitha@university.edu' }
+  ]);
+  const [selectedRole, setSelectedRole] = useState('Frontend Developer');
 
-  // Report form state
-  const [reportCategory, setReportCategory] = useState('Plagiarism / Copyright');
-  const [reportReason, setReportReason] = useState('');
+  // Step 3: Faculty Guide
+  const [facultySearchQuery, setFacultySearchQuery] = useState('');
+  const [facultyList, setFacultyList] = useState([]);
+  const [selectedFacultyGuide, setSelectedFacultyGuide] = useState('Dr. Arumugam Pillai');
 
-  // Enhancement form state
-  const [enhTitle, setEnhTitle] = useState('');
-  const [enhDetails, setEnhDetails] = useState('');
-  const [enhLink, setEnhLink] = useState('');
+  // Step 4: Milestones
+  const [regMilestones, setRegMilestones] = useState([
+    { id: 1, title: 'Requirement Analysis & System Architecture', description: 'Define database schema and endpoint specs.', startDate: '2026-09-01', deadline: '2026-09-07', assignedMembers: [currentUser?.name || 'Kavitha Sundaram'], progress: 0, status: 'PENDING' },
+    { id: 2, title: 'Core Backend Development', description: 'Build REST APIs and authentication microservices.', startDate: '2026-09-08', deadline: '2026-09-14', assignedMembers: [currentUser?.name || 'Kavitha Sundaram'], progress: 0, status: 'PENDING' }
+  ]);
+  const [newMileTitle, setNewMileTitle] = useState('');
+  const [newMileDeadline, setNewMileDeadline] = useState('');
 
-  const [domainFilter, setDomainFilter] = useState('all');
-  const [accessFilter, setAccessFilter] = useState('all');
-  const [customDomainName, setCustomDomainName] = useState('');
+  // Weekly Progress Report Form State
+  const [weeklyPlanned, setWeeklyPlanned] = useState('');
+  const [weeklyCompleted, setWeeklyCompleted] = useState('');
+  const [weeklyCurrent, setWeeklyCurrent] = useState('');
+  const [weeklyPending, setWeeklyPending] = useState('');
+  const [weeklyBlockers, setWeeklyBlockers] = useState('');
+  const [weeklyPlanNext, setWeeklyPlanNext] = useState('');
+  const [weeklyOverallProg, setWeeklyOverallProg] = useState(60);
+  const [weeklyGithubLink, setWeeklyGithubLink] = useState('');
+  const [weeklyNotes, setWeeklyNotes] = useState('');
+  const [weeklyMemberContribs, setWeeklyMemberContribs] = useState([]);
+  const [weeklyLateReason, setWeeklyLateReason] = useState('');
+
+  // Faculty Review Feedback State
+  const [facultyFeedbackText, setFacultyFeedbackText] = useState('');
 
   const predefinedDomainList = [
     'Machine Learning',
@@ -75,20 +85,80 @@ export default function ProjectsPage() {
     'Blockchain',
     'Internet of Things',
     'Cybersecurity',
-    'Cloud Computing',
-    'Other'
+    'Cloud Computing'
+  ];
+
+  const roleOptions = [
+    'Team Leader',
+    'Frontend Developer',
+    'Backend Developer',
+    'ML Engineer',
+    'Database Engineer',
+    'UI/UX Designer',
+    'Testing Engineer',
+    'Documentation Specialist'
   ];
 
   useEffect(() => {
     fetchProjects();
-  }, [filter, domainFilter, accessFilter, search, sort]);
+  }, [filter, domainFilter, search]);
+
+  useEffect(() => {
+    const fromIdeaId = queryParams.get('fromIdea');
+    if (fromIdeaId) {
+      setModal('register');
+      api.get('/ideas').then(res => {
+        if (res.data.success) {
+          const idea = (res.data.ideas || []).find(i => i.id === parseInt(fromIdeaId));
+          if (idea) {
+            setRegTitle(idea.title);
+            setRegCategory(idea.category || 'Machine Learning');
+            setRegTech(Array.isArray(idea.tech) ? idea.tech.join(', ') : idea.tech || '');
+            setRegAbstract(idea.description);
+            if (idea.teamMembers && idea.teamMembers.length > 0) {
+              setSelectedTeamMembers(idea.teamMembers);
+            }
+          }
+        }
+      }).catch(err => console.error('Error prefilling from idea:', err));
+    }
+
+    const projId = queryParams.get('id');
+    const tabParam = queryParams.get('tab');
+    const weekParam = queryParams.get('week');
+    if (projId) {
+      api.get(`/projects/${projId}`).then(res => {
+        if (res.data.success) {
+          const p = res.data.project;
+          if (weekParam && p) {
+            p.currentWeekNumber = parseInt(weekParam);
+          }
+          setSelectedProject(p);
+          initWeeklyFormState(p);
+          if (tabParam) setDetailTab(tabParam);
+          setModal('detail');
+        }
+      }).catch(err => console.error('Error fetching project by id:', err));
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (regStep === 2) {
+      searchStudents('');
+    } else if (regStep === 3) {
+      searchFaculty();
+    }
+  }, [regStep]);
+
+  const [appDateStr, setAppDateStr] = useState('');
 
   const fetchProjects = async () => {
     try {
-      if (projects.length === 0) setLoading(true);
-      const res = await api.get('/projects', { params: { filter, domain: domainFilter, accessLevel: accessFilter, search, sort } });
+      if (!projects.length) setLoading(true);
+      const res = await api.get('/projects', { params: { filter, domain: domainFilter, search } });
       if (res.data.success) {
         setProjects(res.data.projects);
+        if (res.data.appDateFormatted) setAppDateStr(res.data.appDateFormatted);
       }
     } catch (err) {
       console.error('Fetch projects error:', err);
@@ -97,125 +167,78 @@ export default function ProjectsPage() {
     }
   };
 
-  const checkAccess = (p) => {
-    if (!currentUser) return true;
-    if (currentUser.role !== 'Student') return true;
-    if (p.author === currentUser.name) return true;
-    if (p.collaborators && p.collaborators.includes(currentUser.name)) return true;
-
-    if ((currentUser.approved_projects || 0) < 3) return false;
-
-    let req = 0;
-    if (p.type === 'Idea') req = accessTiers[1].min;
-    if (p.type === 'Internal') req = accessTiers[2].min;
-    if (p.type === 'External') req = accessTiers[3].min;
-
-    return (currentUser.credits || 0) >= req;
-  };
-
-  const handleCardClick = async (p) => {
-    if (p.status === 'Domain Verification Pending') {
-      showToast('This project is currently awaiting custom domain verification by Administrator.');
-      return;
-    }
-
-    if (checkAccess(p)) {
-      try {
-        const res = await api.get(`/projects/${p.id}`);
-        if (res.data.success) {
-          setSelectedProject(res.data.project);
-          setModal('detail');
-        }
-      } catch (err) {
-        setSelectedProject(p);
-        setModal('detail');
-      }
-    } else {
-      let req = 60;
-      if (p.type === 'Internal') req = accessTiers[2].min;
-      if (p.type === 'External') req = accessTiers[3].min;
-      setLockedInfo({ type: p.type, req });
-      setModal('locked');
-    }
-  };
-
-  const handleToggleLike = async (e, p) => {
-    e.stopPropagation();
-    if (!checkAccess(p)) return;
+  const searchStudents = async (q) => {
     try {
-      const res = await api.post(`/projects/${p.id}/like`);
+      const res = await api.get('/lifecycle/students/search', { params: { query: q } });
       if (res.data.success) {
-        setProjects((prev) =>
-          prev.map((item) =>
-            item.id === p.id ? { ...item, likes: res.data.likes, liked: res.data.liked } : item
-          )
-        );
-        if (selectedProject?.id === p.id) {
-          setSelectedProject((prev) => ({ ...prev, likes: res.data.likes, liked: res.data.liked }));
-        }
+        setStudentSearchResults(res.data.students);
       }
-    } catch (err) {
-      showToast('Like action failed');
-    }
+    } catch (err) {}
   };
 
-  const handlePostComment = async (e) => {
-    e.preventDefault();
-    if (!commentText.trim() || !selectedProject) return;
+  const searchFaculty = async () => {
     try {
-      const res = await api.post(`/projects/${selectedProject.id}/comments`, { text: commentText });
+      const res = await api.get('/lifecycle/faculty/search', { params: { domain: regCategory } });
       if (res.data.success) {
-        setSelectedProject((prev) => ({
-          ...prev,
-          comments: [...(prev.comments || []), res.data.comment],
-          commentsCount: res.data.commentsCount
-        }));
-        setCommentText('');
-        showToast('Comment posted');
+        setFacultyList(res.data.faculty);
       }
-    } catch (err) {
-      showToast('Failed to post comment');
-    }
+    } catch (err) {}
   };
 
-  const handleSubmitProject = async (e) => {
+  const handleAddTeamMember = (student) => {
+    const exists = selectedTeamMembers.some(m => m.email.toLowerCase() === student.email.toLowerCase());
+    if (exists) {
+      showToast(`${student.name} is already added to team.`);
+      return;
+    }
+    const newMember = { ...student, role: selectedRole };
+    setSelectedTeamMembers([...selectedTeamMembers, newMember]);
+    showToast(`Added ${student.name} as ${selectedRole}`);
+  };
+
+  const handleRemoveTeamMember = (email) => {
+    if (selectedTeamMembers.length <= 1) {
+      showToast('Project must have at least 1 team member.');
+      return;
+    }
+    setSelectedTeamMembers(selectedTeamMembers.filter(m => m.email.toLowerCase() !== email.toLowerCase()));
+  };
+
+  const handleAddInitialMilestone = (e) => {
     e.preventDefault();
+    if (!newMileTitle.trim()) return;
+    const newM = {
+      id: Date.now(),
+      title: newMileTitle,
+      description: 'Planned project milestone.',
+      startDate: new Date().toISOString().split('T')[0],
+      deadline: newMileDeadline || '2026-10-01',
+      assignedMembers: [currentUser?.name || 'Team Member'],
+      progress: 0,
+      status: 'PENDING'
+    };
+    setRegMilestones([...regMilestones, newM]);
+    setNewMileTitle('');
+    setNewMileDeadline('');
+  };
 
-    if (category === 'Other' && !customDomainName.trim()) {
-      showToast('Please specify your proposed custom domain name.');
-      return;
-    }
-
-    // Inline URL validation check
-    const errors = {};
-    if (github && !validateUrl(github)) errors.github = 'Invalid URL format (e.g. https://github.com/...)';
-    if (doc && !validateUrl(doc)) errors.doc = 'Invalid URL format (e.g. https://docs.google.com/...)';
-    if (ppt && !validateUrl(ppt)) errors.ppt = 'Invalid URL format (e.g. https://docs.google.com/...)';
-    if (cert && !validateUrl(cert)) errors.cert = 'Invalid URL format (e.g. https://certs.com/...)';
-    if (demo && !validateUrl(demo)) errors.demo = 'Invalid URL format (e.g. https://youtube.com/...)';
-    if (vercel && !validateUrl(vercel)) errors.vercel = 'Invalid URL format (e.g. https://my-app.vercel.app)';
-
-    if (Object.keys(errors).length > 0) {
-      setUrlErrors(errors);
-      return;
-    }
-
-    setUrlErrors({});
-
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
     try {
       const formData = new FormData();
-      formData.append('title', title);
-      formData.append('category', category);
-      formData.append('customDomainName', customDomainName);
-      formData.append('tech', tech);
-      formData.append('abstract', abstract);
-      formData.append('github', github);
-      formData.append('doc', doc);
-      formData.append('ppt', ppt);
-      formData.append('cert', cert);
-      formData.append('demo', demo);
-      formData.append('vercel', vercel);
-      formData.append('type', submitType);
+      formData.append('title', regTitle);
+      formData.append('type', regType);
+      formData.append('category', regCategory);
+      formData.append('tech', regTech);
+      formData.append('abstract', regAbstract);
+      formData.append('github', regGithub);
+      formData.append('doc', regDoc);
+      formData.append('ppt', regPpt);
+      formData.append('demo', regDemo);
+      formData.append('vercel', regVercel);
+      formData.append('selectedFacultyGuide', selectedFacultyGuide);
+      formData.append('teamMembers', JSON.stringify(selectedTeamMembers));
+      formData.append('initialMilestones', JSON.stringify(regMilestones));
 
       for (let i = 0; i < selectedFiles.length; i++) {
         formData.append('files', selectedFiles[i]);
@@ -228,148 +251,201 @@ export default function ProjectsPage() {
       if (res.data.success) {
         showToast(res.data.message);
         setModal(null);
-        resetSubmitForm();
+        resetRegForm();
         fetchProjects();
       }
     } catch (err) {
-      showToast(err.response?.data?.message || 'Submission failed');
+      showToast(err.response?.data?.message || 'Project registration failed');
     }
   };
 
-  const resetSubmitForm = () => {
-    setTitle(''); setCategory('Machine Learning'); setCustomDomainName(''); setTech(''); setAbstract(''); setGithub('');
-    setDoc(''); setPpt(''); setCert(''); setDemo(''); setVercel(''); setSelectedFiles([]); setUrlErrors({});
+  const resetRegForm = () => {
+    setRegStep(1);
+    setRegTitle(''); setRegCategory('Machine Learning'); setRegTech(''); setRegAbstract('');
+    setRegGithub(''); setRegDoc(''); setRegPpt(''); setRegDemo(''); setRegVercel(''); setSelectedFiles([]);
   };
 
-  const handleOpenReportModal = (e) => {
-    e.stopPropagation();
-    setModal('report');
+  const handleOpenDetailModal = async (p) => {
+    try {
+      const res = await api.get(`/projects/${p.id}`);
+      if (res.data.success) {
+        setSelectedProject(res.data.project);
+        initWeeklyFormState(res.data.project);
+      }
+    } catch (err) {
+      setSelectedProject(p);
+      initWeeklyFormState(p);
+    }
+    setDetailTab('overview');
+    setModal('detail');
   };
 
-  const handleSubmitReport = async (e) => {
+  const initWeeklyFormState = (proj) => {
+    const currentWeek = proj.currentWeekNumber || 1;
+    const existingRep = (proj.weeklyReports || []).find(w => w.weekNumber === currentWeek);
+    setWeeklyLateReason(existingRep?.lateReason || '');
+    if (existingRep) {
+      setWeeklyPlanned(existingRep.plannedWork || '');
+      setWeeklyCompleted(existingRep.completedWork || '');
+      setWeeklyCurrent(existingRep.currentWork || '');
+      setWeeklyPending(existingRep.pendingWork || '');
+      setWeeklyBlockers(existingRep.blockers || '');
+      setWeeklyPlanNext(existingRep.planNextWeek || '');
+      setWeeklyOverallProg(existingRep.overallProgress || 60);
+      setWeeklyGithubLink(existingRep.evidence?.githubLink || proj.github || '');
+      setWeeklyNotes(existingRep.evidence?.notes || '');
+      setWeeklyMemberContribs(existingRep.memberContributions || []);
+    } else {
+      setWeeklyPlanned('Complete ML recommendation engine & mobile maps views.');
+      setWeeklyCompleted('Trained baseline PyTorch model.');
+      setWeeklyCurrent('Integrating Python FastAPI backend with React mobile app.');
+      setWeeklyPending('Testing API latency.');
+      setWeeklyBlockers('None');
+      setWeeklyPlanNext('Conduct end-to-end integration tests.');
+      setWeeklyOverallProg(60);
+      setWeeklyGithubLink(proj.github || '');
+      setWeeklyNotes('Latest commit pushed to main');
+      setWeeklyMemberContribs((proj.teamMembers || []).map(m => ({ studentName: m.name, role: m.role, workCompleted: 'Contributed to module integration', progress: 60 })));
+    }
+  };
+
+  const handleUpdateMilestoneProgress = async (mId, newProg) => {
+    try {
+      const res = await api.put('/lifecycle/milestones/status', {
+        milestoneId: mId,
+        progress: newProg,
+        status: newProg === 100 ? 'COMPLETED' : 'IN_PROGRESS'
+      });
+      if (res.data.success) {
+        showToast(res.data.message);
+        if (selectedProject) {
+          setSelectedProject(prev => ({
+            ...prev,
+            milestones: prev.milestones.map(m => m.id === mId ? { ...m, progress: newProg, status: newProg === 100 ? 'COMPLETED' : 'IN_PROGRESS' } : m)
+          }));
+        }
+        fetchProjects();
+      }
+    } catch (err) {
+      showToast('Failed to update milestone');
+    }
+  };
+
+  const handleSubmitWeeklyProgressReport = async (e) => {
     e.preventDefault();
     if (!selectedProject) return;
-    if (!reportReason.trim()) {
-      showToast('Please provide a reason for the report');
+    try {
+      const currentWeek = selectedProject.currentWeekNumber || 1;
+      const res = await api.post('/lifecycle/weekly/submit', {
+        projectId: selectedProject.id,
+        weekNumber: currentWeek,
+        plannedWork: weeklyPlanned,
+        completedWork: weeklyCompleted,
+        currentWork: weeklyCurrent,
+        pendingWork: weeklyPending,
+        blockers: weeklyBlockers,
+        planNextWeek: weeklyPlanNext,
+        overallProgress: weeklyOverallProg,
+        memberContributions: weeklyMemberContribs,
+        githubLink: weeklyGithubLink,
+        notes: weeklyNotes,
+        lateReason: weeklyLateReason
+      });
+
+      if (res.data.success) {
+        showToast(res.data.message);
+        setModal(null);
+        fetchProjects();
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Weekly report submission failed');
+    }
+  };
+
+  const handleLateRespond = async (approve) => {
+    if (!selectedProject) return;
+    if (!facultyFeedbackText || !facultyFeedbackText.trim()) {
+      showToast('Faculty review comment is required before responding to late submission requests.');
       return;
     }
     try {
-      const res = await api.post(`/projects/${selectedProject.id}/report`, {
-        category: reportCategory,
-        reason: reportReason
+      const currentWeek = selectedProject.currentWeekNumber || 1;
+      const res = await api.post('/lifecycle/weekly/late-respond', {
+        projectId: selectedProject.id,
+        weekNumber: currentWeek,
+        approve,
+        comment: facultyFeedbackText
       });
       if (res.data.success) {
         showToast(res.data.message);
-        setModal(null);
-        setReportReason('');
-      }
-    } catch (err) {
-      showToast('Report submission failed');
-    }
-  };
-
-  const handleOpenCloneModal = (e, project) => {
-    if (e) e.stopPropagation();
-    setSelectedProject(project);
-    setModal('clone');
-  };
-
-  const handleCopyCloneCmd = async (project) => {
-    const gitUrl = project?.github || `https://github.com/campus/${(project?.title || 'repo').toLowerCase().replace(/\s+/g, '-')}`;
-    const cmd = `git clone ${gitUrl}`;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(cmd);
-    }
-    showToast(`Copied: "${cmd}"`);
-    try {
-      await api.post(`/projects/${project.id}/clone`);
-      fetchProjects();
-    } catch (err) {}
-  };
-
-  const handleForkProjectDraft = async (project) => {
-    resetSubmitForm();
-    setTitle(`Fork: ${project.title}`);
-    setCategory(project.category || 'Web Development');
-    setTech(Array.isArray(project.tech) ? project.tech.join(', ') : (project.tech || ''));
-    setAbstract(`Forked / Continuation build of "${project.title}" by ${project.author}.\nOriginal Repository: ${project.github || 'N/A'}`);
-    setGithub(project.github || '');
-    setModal('submit');
-    showToast(`Initialized project draft from ${project.title}`);
-    try {
-      await api.post(`/projects/${project.id}/clone`);
-      fetchProjects();
-    } catch (err) {}
-  };
-
-  const handleDeleteProject = async (e, projectId) => {
-    e.stopPropagation();
-    try {
-      const res = await api.delete(`/projects/${projectId}`);
-      if (res.data.success) {
-        showToast(res.data.message);
+        setFacultyFeedbackText('');
         setModal(null);
         fetchProjects();
       }
     } catch (err) {
-      showToast('Delete project failed');
+      showToast(err.response?.data?.message || 'Action failed');
     }
   };
 
-  const handleRequestCollab = async (projectId) => {
-    try {
-      const res = await api.post('/collaboration/request', { projectId });
-      if (res.data.success) {
-        showToast('Collaboration request sent!');
-        setModal(null);
-      }
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Collaboration request failed');
-    }
-  };
-
-  const handleSubmitEnhancement = async (e) => {
-    e.preventDefault();
+  const handleFacultyReviewReport = async (approve) => {
     if (!selectedProject) return;
+    if (!facultyFeedbackText || !facultyFeedbackText.trim()) {
+      showToast('Faculty review comment is required before submitting review.');
+      return;
+    }
     try {
-      const res = await api.post('/collaboration/enhancements', {
+      const currentWeek = selectedProject.currentWeekNumber || 1;
+      const res = await api.post('/lifecycle/weekly/review', {
         projectId: selectedProject.id,
-        title: enhTitle,
-        details: enhDetails,
-        codeLink: enhLink
+        weekNumber: currentWeek,
+        approve,
+        feedbackText: facultyFeedbackText
       });
       if (res.data.success) {
         showToast(res.data.message);
-        setModal(null);
-        setEnhTitle(''); setEnhDetails(''); setEnhLink('');
+        setSelectedProject(prev => ({
+          ...prev,
+          weeklyReports: prev.weeklyReports.map(w => w.weekNumber === currentWeek ? res.data.report : w)
+        }));
+        setFacultyFeedbackText('');
+        fetchProjects();
       }
     } catch (err) {
-      showToast('Enhancement submission failed');
+      showToast(err.response?.data?.message || 'Faculty review failed');
     }
   };
 
-  const tabs = [['all', 'All'], ['internal', 'Internal'], ['external', 'External'], ['idea', 'Ideas']];
-  const sortOptions = [
-    ['popular', 'Popular'],
-    ['latest', 'Latest'],
-    ['views', 'Most Viewed'],
-    ['credits', 'Highest Credits']
-  ];
+  const handleCompleteProject = async () => {
+    if (!selectedProject) return;
+    try {
+      const res = await api.post('/lifecycle/complete', { projectId: selectedProject.id });
+      if (res.data.success) {
+        showToast(res.data.message);
+        setSelectedProject(prev => ({ ...prev, status: 'COMPLETED' }));
+        fetchProjects();
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Completion failed');
+    }
+  };
+
+  const tabs = [['all', 'All Projects'], ['internal', 'Internal Projects'], ['external', 'External Projects']];
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <h1>Projects Repository</h1>
-          <p>Browse internal, external, and idea submissions across the platform.</p>
+          <h1>Project Workspaces & Repositories</h1>
+          <p>Track project registration, team members, milestone deadlines, and weekly development lifecycle.</p>
         </div>
         {(currentUser?.role === 'Student' || currentUser?.role === 'Administrator') && (
-          <button className="btn btn-primary" onClick={() => { resetSubmitForm(); setSubmitType('Internal'); setModal('submit'); }}>
-            <Icon name="plus" size={16} /> Submit Project
+          <button className="btn btn-primary" onClick={() => { resetRegForm(); setModal('register'); }}>
+            <Icon name="plus" size={16} /> Register New Project
           </button>
         )}
       </div>
 
+      {/* SEARCH & FILTERS BAR */}
       <div className="toolbar" style={{ flexWrap: 'wrap', gap: '12px' }}>
         <div className="tabs">
           {tabs.map(([id, label]) => (
@@ -392,498 +468,754 @@ export default function ProjectsPage() {
             ))}
           </select>
 
-          <select
-            className="field"
-            style={{ width: 'auto', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', background: '#0f172a', color: '#fff', margin: 0 }}
-            value={accessFilter}
-            onChange={(e) => setAccessFilter(e.target.value)}
-          >
-            <option value="all">Access: All Projects</option>
-            <option value="unlocked">Access: Unlocked Only</option>
-            <option value="locked">Access: Locked Only</option>
-          </select>
-
           <div className="search-wrap">
             <Icon name="search2" size={16} />
             <input
               className="search-input"
-              placeholder="Search title, student, dept, tech..."
+              placeholder="Search title, team member, domain, tech..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-
-          <select
-            className="field"
-            style={{ width: 'auto', border: '1px solid var(--border)', borderRadius: '10px', padding: '8px 12px', fontSize: '13px', background: '#0f172a', color: '#fff', margin: 0 }}
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-          >
-            {sortOptions.map(([v, l]) => (
-              <option key={v} value={v} style={{ background: '#0f172a', color: '#fff' }}>Sort: {l}</option>
-            ))}
-          </select>
         </div>
       </div>
 
+      {/* PROJECTS GRID */}
       {loading ? (
-        <div style={{ color: 'var(--muted)', padding: '40px' }}>Loading projects...</div>
+        <div style={{ color: 'var(--muted)', padding: '40px' }}>Loading project workspaces...</div>
       ) : projects.length ? (
         <div className="proj-grid">
           {projects.map((p) => {
-            const hasAccess = checkAccess(p);
-            const isDomainPending = (p.status === 'Domain Verification Pending');
+            const currentWeek = p.currentWeekNumber || 1;
+            const currentReport = (p.weeklyReports || []).find(w => w.weekNumber === currentWeek);
+            const todayStr = appDateStr || new Date().toISOString().split('T')[0];
+            const dueDate = currentReport?.dueDate || p.weeklyCycle?.dueDate;
+
+            let statusBadge = { label: '🟢 Upcoming', color: '#10b981', bg: 'rgba(16,185,129,0.15)' };
+
+            if (p.status === 'COMPLETED') {
+              statusBadge = { label: '✓ Completed', color: '#3b82f6', bg: 'rgba(59,130,246,0.15)' };
+            } else if (currentReport) {
+              if (currentReport.submissionStatus === 'REVIEWED') {
+                if (currentReport.lateRequestStatus === 'APPROVED') {
+                  statusBadge = { label: '✓ Submitted Late (+5 credits)', color: '#34d399', bg: 'rgba(52,211,153,0.15)' };
+                } else {
+                  statusBadge = { label: '✓ Reviewed (+10 credits)', color: '#34d399', bg: 'rgba(52,211,153,0.15)' };
+                }
+              } else if (currentReport.submissionStatus === 'LATE_REQUEST_PENDING') {
+                statusBadge = { label: '🔴 Late Request Pending', color: '#f43f5e', bg: 'rgba(244,63,94,0.15)' };
+              } else if (currentReport.submissionStatus === 'LATE_REJECTED') {
+                statusBadge = { label: '🔴 Late Request Rejected', color: '#f43f5e', bg: 'rgba(244,63,94,0.15)' };
+              } else if (currentReport.submissionStatus === 'SUBMITTED') {
+                statusBadge = { label: '✓ Submitted', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)' };
+              } else if (currentReport.submissionStatus === 'CHANGES_REQUESTED') {
+                statusBadge = { label: '⚠️ Changes Requested', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' };
+              } else if (currentReport.submissionStatus === 'OVERDUE' || (dueDate && todayStr > dueDate)) {
+                statusBadge = { label: '🔴 Overdue', color: '#f43f5e', bg: 'rgba(244,63,94,0.15)' };
+              } else if (dueDate && todayStr === dueDate) {
+                statusBadge = { label: '⏳ Due Today', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' };
+              }
+            } else if (dueDate) {
+              if (todayStr > dueDate) {
+                statusBadge = { label: '🔴 Overdue', color: '#f43f5e', bg: 'rgba(244,63,94,0.15)' };
+              } else if (todayStr === dueDate) {
+                statusBadge = { label: '⏳ Due Today', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)' };
+              }
+            }
+
+            const isUserInTeam = currentUser?.role === 'Student' && (
+              p.authorId === currentUser?.id ||
+              (p.teamMembers || []).some(m => m.email?.toLowerCase() === currentUser?.email?.toLowerCase() || m.regNo === currentUser?.regNo)
+            );
+            const needsSubmission = !currentReport || currentReport.submissionStatus === 'PENDING' || currentReport.submissionStatus === 'OVERDUE' || currentReport.submissionStatus === 'CHANGES_REQUESTED';
+
             return (
               <div
                 key={p.id}
-                className={`card proj-card${hasAccess ? '' : ' locked'}`}
-                onClick={() => handleCardClick(p)}
-                style={{
-                  position: 'relative',
-                  opacity: isDomainPending ? 0.75 : 1,
-                  border: isDomainPending ? '1px dashed #f59e0b' : undefined,
-                  background: isDomainPending ? 'rgba(245, 158, 11, 0.04)' : undefined
-                }}
+                className="card proj-card"
+                onClick={() => handleOpenDetailModal(p)}
+                style={{ position: 'relative' }}
               >
-                {!hasAccess && !isDomainPending && (
-                  <div className="lock-overlay-icon">
-                    <Icon name="lock" size={14} />
-                  </div>
-                )}
                 <div className="proj-top">
                   <div className="proj-badges">
                     <BadgeType type={p.type} />
-                    {isDomainPending ? (
-                      <span className="badge badge-warning" style={{ background: 'rgba(245,158,11,0.2)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)', fontSize: '10.5px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: '12px', height: '22px' }}>
-                        ⏳ Domain Approval Pending
-                      </span>
-                    ) : (
-                      <BadgeStatus status={p.status} />
-                    )}
+                    <span className={`badge ${p.status === 'IN_PROGRESS' ? 'badge-green' : p.status === 'COMPLETED' ? 'badge-blue' : 'badge-yellow'}`}>
+                      {p.status}
+                    </span>
                   </div>
-                  <div className="proj-cat" style={{ marginRight: '20px' }}>{p.category}</div>
+                  <div className="proj-cat">{p.category}</div>
                 </div>
+
                 <div className="proj-title" style={{ marginTop: '6px' }}>{p.title}</div>
                 <div className="proj-by">
-                  by <span
-                    className="clickable-name"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/profile?name=${encodeURIComponent(p.author)}`);
-                    }}
-                  >{p.author}</span> &middot; {p.dept}
+                  Faculty Guide: <b>{p.facultyGuide?.name || 'Unassigned'}</b>
                 </div>
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '8px' }}>
-                  {(p.tech || []).map((t, idx) => (
-                    <span key={idx} className="badge badge-gray" style={{ fontSize: '10px', padding: '1px 5px' }}>{t}</span>
+
+                <div style={{ marginTop: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--muted)', marginBottom: '4px' }}>
+                    <span>Milestone Progress</span>
+                    <b style={{ color: '#fff' }}>{p.overallProgress || 50}%</b>
+                  </div>
+                  <div className="progress-track" style={{ height: '6px' }}>
+                    <div className="progress-fill" style={{ width: `${p.overallProgress || 50}%` }}></div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
+                  <span style={{ color: 'var(--muted)' }}>Week {currentWeek} Status:</span>
+                  <span style={{ padding: '3px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 700, color: statusBadge.color, background: statusBadge.bg }}>
+                    {statusBadge.label}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '10px' }}>
+                  {(p.teamMembers || []).map((m, idx) => (
+                    <span key={idx} className="badge badge-gray" style={{ fontSize: '10px' }}>{m.name} ({m.role})</span>
                   ))}
                 </div>
-                <div className="proj-stats" style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <button className={p.liked ? 'liked' : ''} onClick={(e) => handleToggleLike(e, p)}>
-                      <Icon name={p.liked ? 'heartFilled' : 'heart'} size={15} /> {p.likes}
-                    </button>
-                    <span><Icon name="comment" size={15} /> {p.commentsCount || (p.comments ? p.comments.length : 0)}</span>
-                    <span><Icon name="eye" size={15} /> {p.views}</span>
-                    <span title="Project Clones / Forks"><Icon name="folder" size={15} /> {p.clones || p.clonesCount || 0}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    {hasAccess && !isDomainPending && (
-                      <button
-                        className="btn btn-outline btn-sm"
-                        style={{ padding: '2px 8px', fontSize: '11.5px', height: '26px' }}
-                        onClick={(e) => handleOpenCloneModal(e, p)}
-                        title="Clone or Fork Project"
-                      >
-                        <Icon name="folder" size={13} /> Clone
-                      </button>
-                    )}
-                    {currentUser?.role === 'Administrator' && (
-                      <button
-                        className="btn btn-danger-outline btn-sm"
-                        style={{ padding: '2px 6px', fontSize: '11px', height: '26px' }}
-                        onClick={(e) => handleDeleteProject(e, p.id)}
-                        title="Admin: Remove project"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
+
+                {isUserInTeam && p.status !== 'COMPLETED' && needsSubmission && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    style={{ marginTop: '12px', width: '100%', justifyContent: 'center', fontSize: '12px' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDetailModal(p);
+                      setDetailTab('weekly');
+                    }}
+                  >
+                    📝 Submit Week {currentWeek} Report
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
       ) : (
-        <EmptyState msg="No projects match your search criteria." ic="search2" />
+        <EmptyState msg="No project workspaces found." ic="search2" />
       )}
 
-      {/* MODAL: SUBMIT PROJECT */}
-      {modal === 'submit' && (
+      {/* MULTI-STEP PROJECT REGISTRATION WIZARD MODAL */}
+      {modal === 'register' && (
         <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal" style={{ width: '500px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3>Submit Project</h3>
-            <p className="hint">
-              {submitType === 'Internal'
-                ? 'Internal academic projects are automatically assigned an eligible faculty reviewer based on domain expertise.'
-                : 'External projects send a guide request to an eligible faculty member in your domain.'}
-            </p>
-            <div className="tabs" style={{ marginBottom: '16px' }}>
-              <div className={`tab ${submitType === 'Internal' ? 'active' : ''}`} onClick={() => setSubmitType('Internal')}>Internal Project</div>
-              <div className={`tab ${submitType === 'External' ? 'active' : ''}`} onClick={() => setSubmitType('External')}>External Project</div>
-            </div>
-            <form onSubmit={handleSubmitProject}>
-              <div className="field"><label>Project title</label><input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Smart Attendance Tracker" /></div>
-              
-              <div className="field">
-                <label>Domain / Category</label>
-                <select
-                  className="field"
-                  style={{ width: '100%', background: '#0f172a', color: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  {predefinedDomainList.map(d => (
-                    <option key={d} value={d} style={{ background: '#0f172a', color: '#fff' }}>{d}</option>
-                  ))}
-                </select>
-              </div>
-
-              {category === 'Other' && (
-                <div className="field" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', padding: '12px', borderRadius: '8px' }}>
-                  <label style={{ color: '#fbbf24', fontWeight: 600 }}>Specify Proposed Custom Domain</label>
-                  <input
-                    required
-                    value={customDomainName}
-                    onChange={(e) => setCustomDomainName(e.target.value)}
-                    placeholder="e.g. Quantum Computing Simulators"
-                  />
-                  <div style={{ fontSize: '11.5px', color: 'var(--muted)', marginTop: '4px' }}>
-                    ℹ️ Custom domains require Administrator verification before entering faculty review.
-                  </div>
-                </div>
-              )}
-
-              <div className="field"><label>Technologies (comma separated)</label><input required value={tech} onChange={(e) => setTech(e.target.value)} placeholder="e.g. React, Python, Flask" /></div>
-              <div className="field"><label>Abstract</label><textarea required rows="2" value={abstract} onChange={(e) => setAbstract(e.target.value)} placeholder="Short summary of the project"></textarea></div>
-
-              <div className="field">
-                <label>GitHub repository</label>
-                <input value={github} onChange={(e) => { setGithub(e.target.value); if (urlErrors.github) setUrlErrors(prev => ({ ...prev, github: '' })); }} placeholder="https://github.com/..." />
-                {urlErrors.github && <div style={{ color: '#f43f5e', fontSize: '11.5px', marginTop: '4px', fontWeight: 600 }}>⚠️ {urlErrors.github}</div>}
-              </div>
-
-              <div className="field">
-                <label>Documentation link</label>
-                <input value={doc} onChange={(e) => { setDoc(e.target.value); if (urlErrors.doc) setUrlErrors(prev => ({ ...prev, doc: '' })); }} placeholder="Link to report / docs" />
-                {urlErrors.doc && <div style={{ color: '#f43f5e', fontSize: '11.5px', marginTop: '4px', fontWeight: 600 }}>⚠️ {urlErrors.doc}</div>}
-              </div>
-
-              {submitType === 'Internal' ? (
-                <div className="field">
-                  <label>PPT link</label>
-                  <input value={ppt} onChange={(e) => { setPpt(e.target.value); if (urlErrors.ppt) setUrlErrors(prev => ({ ...prev, ppt: '' })); }} placeholder="Link to presentation" />
-                  {urlErrors.ppt && <div style={{ color: '#f43f5e', fontSize: '11.5px', marginTop: '4px', fontWeight: 600 }}>⚠️ {urlErrors.ppt}</div>}
-                </div>
-              ) : (
-                <div className="field">
-                  <label>Certificate (optional)</label>
-                  <input value={cert} onChange={(e) => { setCert(e.target.value); if (urlErrors.cert) setUrlErrors(prev => ({ ...prev, cert: '' })); }} placeholder="Link to certificate" />
-                  {urlErrors.cert && <div style={{ color: '#f43f5e', fontSize: '11.5px', marginTop: '4px', fontWeight: 600 }}>⚠️ {urlErrors.cert}</div>}
-                </div>
-              )}
-
-              <div className="field">
-                <label>Demo video (optional)</label>
-                <input value={demo} onChange={(e) => { setDemo(e.target.value); if (urlErrors.demo) setUrlErrors(prev => ({ ...prev, demo: '' })); }} placeholder="YouTube / Drive link" />
-                {urlErrors.demo && <div style={{ color: '#f43f5e', fontSize: '11.5px', marginTop: '4px', fontWeight: 600 }}>⚠️ {urlErrors.demo}</div>}
-              </div>
-
-              <div className="field">
-                <label>Vercel link (optional)</label>
-                <input value={vercel} onChange={(e) => { setVercel(e.target.value); if (urlErrors.vercel) setUrlErrors(prev => ({ ...prev, vercel: '' })); }} placeholder="https://your-app.vercel.app" />
-                {urlErrors.vercel && <div style={{ color: '#f43f5e', fontSize: '11.5px', marginTop: '4px', fontWeight: 600 }}>⚠️ {urlErrors.vercel}</div>}
-              </div>
-
-              <div className="field">
-                <label>Upload Documents / Code (Multer file storage)</label>
-                <input type="file" multiple onChange={(e) => setSelectedFiles(e.target.files)} style={{ padding: '6px' }} />
-              </div>
-
-              <div className="field" style={{ background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.25)', padding: '12px', borderRadius: '8px', marginTop: '14px' }}>
-                <div style={{ color: '#818cf8', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Icon name="shield" size={15} /> Automated Faculty Reviewer Assignment
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', lineHeight: 1.4 }}>
-                  Faculty reviewers are automatically assigned based on domain expertise and pending workload capacity limits. Assigned faculty details remain confidential.
-                </div>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{submitType === 'Internal' ? 'Submit for review' : 'Send guide request'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: REPORT PROJECT */}
-      {modal === 'report' && selectedProject && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal" style={{ width: '450px' }}>
-            <h3 style={{ color: '#f43f5e', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Icon name="bell" size={18} /> Report Project Violation
-            </h3>
-            <p className="hint">Submit details to platform administrators regarding "{selectedProject.title}".</p>
-            <form onSubmit={handleSubmitReport}>
-              <div className="field">
-                <label>Report Violation Category</label>
-                <select
-                  value={reportCategory}
-                  onChange={(e) => setReportCategory(e.target.value)}
-                  style={{ background: '#0f172a', color: '#fff' }}
-                >
-                  <option style={{ background: '#0f172a', color: '#fff' }}>Plagiarism / Copyright Violation</option>
-                  <option style={{ background: '#0f172a', color: '#fff' }}>Inappropriate Content</option>
-                  <option style={{ background: '#0f172a', color: '#fff' }}>Misleading or Broken Links</option>
-                  <option style={{ background: '#0f172a', color: '#fff' }}>Unauthorized Code Reuse</option>
-                  <option style={{ background: '#0f172a', color: '#fff' }}>Other Guideline Violation</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>Detailed Explanation / Proof</label>
-                <textarea
-                  required
-                  rows="3"
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                  placeholder="Explain why this project violates guidelines..."
-                ></textarea>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button>
-                <button type="submit" className="btn btn-danger-outline" style={{ background: 'rgba(244,63,94,0.1)' }}>Submit Report to Admin</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: CLONE / FORK */}
-      {modal === 'clone' && selectedProject && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal" style={{ width: '520px', maxWidth: '95%' }}>
+          <div className="modal" style={{ width: '640px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div className="notif-icon" style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8' }}>
-                  <Icon name="folder" size={18} />
+              <div>
+                <h3 style={{ margin: 0, fontSize: '19px' }}>Project Registration & Setup</h3>
+                <div style={{ fontSize: '12.5px', color: 'var(--muted)', marginTop: '2px' }}>
+                  Step {regStep} of 4 &middot; Register your academic project at the beginning of development.
                 </div>
-                <h3 style={{ margin: 0, fontSize: '18px' }}>Clone & Fork Repository</h3>
               </div>
               <button className="icon-btn" onClick={() => setModal(null)}><Icon name="x" size={18} /></button>
             </div>
 
-            <p className="hint" style={{ marginBottom: '16px' }}>
-              Clone or fork <b>"{selectedProject.title}"</b> to start an extension, bug fix, or personal build.
-            </p>
+            {/* STEP PROGRESS BAR */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+              {['1. Details & Artifacts', '2. Team Members', '3. Select Faculty Guide', '4. Milestone Plan'].map((stepLabel, idx) => (
+                <div key={idx} style={{
+                  flex: 1, padding: '8px', borderRadius: '8px', fontSize: '11.5px', fontWeight: 600, textAlign: 'center',
+                  background: regStep === (idx + 1) ? 'var(--accent-grad)' : regStep > (idx + 1) ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.04)',
+                  color: regStep >= (idx + 1) ? '#fff' : 'var(--muted-2)'
+                }}>
+                  {stepLabel}
+                </div>
+              ))}
+            </div>
 
-            <div style={{ background: 'rgba(15,23,42,0.8)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '18px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                Git CLI Command:
-              </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#090d16', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <code style={{ fontSize: '13px', color: '#38bdf8', flex: 1, fontFamily: 'monospace', overflowX: 'auto' }}>
-                  git clone {selectedProject.github || `https://github.com/campus/${(selectedProject.title || 'repo').toLowerCase().replace(/\s+/g, '-')}`}
-                </code>
-                <button className="btn btn-primary btn-sm" onClick={() => handleCopyCloneCmd(selectedProject)}>
-                  Copy CLI
-                </button>
+            {/* STEP 1: PROJECT DETAILS & ARTIFACTS */}
+            {regStep === 1 && (
+              <form onSubmit={(e) => { e.preventDefault(); setRegStep(2); }}>
+                <div className="tabs" style={{ marginBottom: '16px' }}>
+                  <div className={`tab ${regType === 'Internal' ? 'active' : ''}`} onClick={() => setRegType('Internal')}>Internal Academic Project</div>
+                  <div className={`tab ${regType === 'External' ? 'active' : ''}`} onClick={() => setRegType('External')}>External Research Project</div>
+                </div>
+
+                <div className="field"><label>Project Title</label><input required value={regTitle} onChange={(e) => setRegTitle(e.target.value)} placeholder="e.g. Smart Campus Assistant" /></div>
+                <div className="field">
+                  <label>Domain Category</label>
+                  <select
+                    style={{ width: '100%', background: '#0f172a', color: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                    value={regCategory}
+                    onChange={(e) => setRegCategory(e.target.value)}
+                  >
+                    {predefinedDomainList.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div className="field"><label>Technologies (comma separated)</label><input required value={regTech} onChange={(e) => setRegTech(e.target.value)} placeholder="e.g. React Native, Node.js, Python" /></div>
+                <div className="field"><label>Project Abstract & Objectives</label><textarea required rows="3" value={regAbstract} onChange={(e) => setRegAbstract(e.target.value)} placeholder="Describe problem statement and development goals..."></textarea></div>
+
+                <h4 style={{ margin: '16px 0 8px', fontSize: '14px', color: '#fff' }}>Verified Links & Project Artifacts</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="field"><label>GitHub Repo</label><input value={regGithub} onChange={(e) => setRegGithub(e.target.value)} placeholder="https://github.com/..." /></div>
+                  <div className="field"><label>Doc Link</label><input value={regDoc} onChange={(e) => setRegDoc(e.target.value)} placeholder="https://docs.google.com/..." /></div>
+                  <div className="field"><label>PPT Link</label><input value={regPpt} onChange={(e) => setRegPpt(e.target.value)} placeholder="https://docs.google.com/..." /></div>
+                  <div className="field"><label>Demo Video</label><input value={regDemo} onChange={(e) => setRegDemo(e.target.value)} placeholder="https://youtube.com/..." /></div>
+                </div>
+
+                <div className="modal-actions" style={{ marginTop: '20px' }}>
+                  <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">Next: Team Members <Icon name="arrow" size={15} /></button>
+                </div>
+              </form>
+            )}
+
+            {/* STEP 2: TEAM MEMBERS SEARCH & SELECTION */}
+            {regStep === 2 && (
+              <div>
+                <h4 style={{ margin: '0 0 8px', fontSize: '15px', color: '#fff' }}>Search & Add Team Members from Student Database</h4>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
+                  <input
+                    className="search-input"
+                    style={{ flex: 1, paddingLeft: '12px' }}
+                    placeholder="Search student by name or register number (e.g. 2026CS102)..."
+                    value={studentSearchQuery}
+                    onChange={(e) => { setStudentSearchQuery(e.target.value); searchStudents(e.target.value); }}
+                  />
+                  <select
+                    style={{ background: '#0f172a', color: '#fff', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value)}
+                  >
+                    {roleOptions.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+
+                {/* SEARCH RESULTS DROPDOWN / LIST */}
+                <div style={{ maxHeight: '140px', overflowY: 'auto', background: 'rgba(15,23,42,0.8)', borderRadius: '8px', border: '1px solid var(--border)', padding: '8px', marginBottom: '16px' }}>
+                  {studentSearchResults.map(s => (
+                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div>
+                        <b style={{ color: '#fff', fontSize: '13px' }}>{s.name}</b> <span style={{ color: '#38bdf8', fontSize: '12px' }}>({s.regNo})</span>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{s.dept} &middot; {s.email}</div>
+                      </div>
+                      <button className="btn btn-primary btn-sm" style={{ padding: '3px 8px', fontSize: '11.5px' }} onClick={() => handleAddTeamMember(s)}>
+                        + Add Member
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* SELECTED TEAM LIST */}
+                <h5 style={{ margin: '12px 0 6px', color: '#fff' }}>Selected Project Team ({selectedTeamMembers.length}):</h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '20px' }}>
+                  {selectedTeamMembers.map((m, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div>
+                        <b style={{ color: '#fff', fontSize: '13.5px' }}>{m.name}</b> <span style={{ color: '#34d399', fontSize: '12px' }}>[{m.role}]</span>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Reg No: {m.regNo} &middot; {m.dept}</div>
+                      </div>
+                      {idx > 0 && (
+                        <button className="btn btn-danger-outline btn-sm" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={() => handleRemoveTeamMember(m.email)}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-outline" onClick={() => setRegStep(1)}>Back</button>
+                  <button type="button" className="btn btn-primary" onClick={() => setRegStep(3)}>Next: Faculty Guide <Icon name="arrow" size={15} /></button>
+                </div>
               </div>
-            </div>
+            )}
 
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '10px', padding: '14px', marginBottom: '18px' }}>
-              <h4 style={{ margin: '0 0 6px', fontSize: '14px', color: '#fff' }}>Fork & Build Enhancement</h4>
-              <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: '0 0 10px', lineHeight: 1.45 }}>
-                Initialize a new student project submission draft pre-filled with this repository's tech stack and category.
-              </p>
-              <button className="btn btn-outline btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => handleForkProjectDraft(selectedProject)}>
-                <Icon name="plus" size={14} /> Fork as New Student Build Draft
-              </button>
-            </div>
+            {/* STEP 3: FACULTY GUIDE SELECTION */}
+            {regStep === 3 && (
+              <div>
+                <h4 style={{ margin: '0 0 6px', fontSize: '15px', color: '#fff' }}>Choose Your Faculty Guide</h4>
+                <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: '0 0 14px' }}>
+                  Select an available faculty guide in your domain. A mentorship request will be sent to the chosen faculty member upon registration.
+                </p>
 
-            <div className="modal-actions" style={{ justifyContent: 'flex-end' }}>
-              <button className="btn btn-outline" onClick={() => setModal(null)}>Close</button>
-            </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto', marginBottom: '20px' }}>
+                  {facultyList.map(f => {
+                    const isSelected = selectedFacultyGuide === f.name;
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => setSelectedFacultyGuide(f.name)}
+                        style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: '10px',
+                          border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                          background: isSelected ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <div>
+                          <b style={{ color: '#fff', fontSize: '14.5px' }}>{f.name}</b>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+                            {f.dept} &middot; Expertise: <span style={{ color: '#38bdf8' }}>{(f.specializations || []).join(', ')}</span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--muted-2)', marginTop: '2px' }}>
+                            Current Mentoring: <b>{f.currentProjectsCount} projects</b>
+                          </div>
+                        </div>
+                        <span className={`badge ${f.availabilityStatus === 'Available' ? 'badge-green' : 'badge-yellow'}`}>
+                          {f.availabilityStatus}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-outline" onClick={() => setRegStep(2)}>Back</button>
+                  <button type="button" className="btn btn-primary" onClick={() => setRegStep(4)}>Next: Milestones Plan <Icon name="arrow" size={15} /></button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: INITIAL MILESTONE PLANNING */}
+            {regStep === 4 && (
+              <div>
+                <h4 style={{ margin: '0 0 6px', fontSize: '15px', color: '#fff' }}>Define Project Milestones & Schedule</h4>
+                <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: '0 0 14px' }}>
+                  Set initial milestone targets and deadlines for your team.
+                </p>
+
+                <form onSubmit={handleAddInitialMilestone} style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                  <input
+                    required
+                    style={{ flex: 2, background: '#0f172a', color: '#fff', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 12px', fontSize: '13px' }}
+                    placeholder="New milestone title (e.g. Backend API Development)..."
+                    value={newMileTitle}
+                    onChange={(e) => setNewMileTitle(e.target.value)}
+                  />
+                  <input
+                    type="date"
+                    style={{ flex: 1, background: '#0f172a', color: '#fff', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px' }}
+                    value={newMileDeadline}
+                    onChange={(e) => setNewMileDeadline(e.target.value)}
+                  />
+                  <button type="submit" className="btn btn-primary btn-sm">+ Add Milestone</button>
+                </form>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                  {regMilestones.map((m, idx) => (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <b style={{ color: '#fff', fontSize: '13.5px' }}>{idx + 1}. {m.title}</b>
+                        <div style={{ fontSize: '11.5px', color: 'var(--muted)' }}>Deadline: {m.deadline}</div>
+                      </div>
+                      <button className="btn btn-danger-outline btn-sm" style={{ padding: '2px 6px', fontSize: '11px' }} onClick={() => setRegMilestones(regMilestones.filter(item => item.id !== m.id))}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-outline" onClick={() => setRegStep(3)}>Back</button>
+                  <button type="button" className="btn btn-primary" onClick={handleRegisterSubmit}>
+                    <Icon name="check" size={15} /> Complete Registration & Send Faculty Request
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* MODAL: LOCKED */}
-      {modal === 'locked' && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal" style={{ textAlign: 'center', padding: '34px 26px' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(244, 63, 94, 0.12)', color: '#fb7185', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px', border: '1px solid rgba(244,63,94,0.2)' }}>
-              <Icon name="lock" size={24} />
-            </div>
-            <h3 style={{ marginBottom: '8px' }}>Repository Locked</h3>
-            <p className="hint" style={{ marginBottom: '20px', lineHeight: 1.55 }}>
-              Access to <b>{lockedInfo.type} Projects</b> requires a student to have:
-              <br />1. At least <b>3 approved projects</b> (You have: <b>{currentUser?.approved_projects || 0}</b> {(currentUser?.approved_projects || 0) >= 3 ? '✅' : '❌'})
-              <br />2. At least <b>{lockedInfo.req} credit points</b> (You have: <b>{currentUser?.credits || 0}</b> {(currentUser?.credits || 0) >= lockedInfo.req ? '✅' : '❌'})
-            </p>
-            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px', fontSize: '12.5px', color: 'var(--muted)', marginBottom: '20px', textAlign: 'left' }}>
-              💡 <b>How to unlock:</b> Submit projects for faculty review, publish project ideas, receive likes, or collaborate on enhancements.
-            </div>
-            <button type="button" className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModal(null)}>
-              Understood
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: DETAIL */}
+      {/* DETAILED PROJECT LIFECYCLE WORKSPACE MODAL */}
       {modal === 'detail' && selectedProject && (
         <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal" style={{ width: '600px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="modal" style={{ width: '750px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
               <div>
-                <div className="proj-badges" style={{ marginBottom: '6px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
                   <BadgeType type={selectedProject.type} />
-                  <BadgeStatus status={selectedProject.status} />
+                  <span className={`badge ${selectedProject.status === 'IN_PROGRESS' ? 'badge-green' : selectedProject.status === 'COMPLETED' ? 'badge-blue' : 'badge-yellow'}`}>
+                    STATUS: {selectedProject.status}
+                  </span>
                 </div>
-                <h3 style={{ margin: 0, fontSize: '20px', lineHeight: 1.25 }}>{selectedProject.title}</h3>
+                <h2 style={{ margin: 0, fontSize: '22px', color: '#fff' }}>{selectedProject.title}</h2>
                 <div style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '4px' }}>
-                  by <span
-                    className="clickable-name"
-                    onClick={() => {
-                      setModal(null);
-                      navigate(`/profile?name=${encodeURIComponent(selectedProject.author)}`);
-                    }}
-                  >{selectedProject.author}</span> &middot; {selectedProject.dept}
+                  Leader: <b>{selectedProject.author}</b> ({selectedProject.authorRegNo || '2026CS101'}) &middot; Faculty Guide: <b style={{ color: '#fff' }}>{selectedProject.facultyGuide?.name || 'Unassigned'}</b>
                 </div>
               </div>
               <button className="icon-btn" onClick={() => setModal(null)}><Icon name="x" size={20} /></button>
             </div>
 
-            <div style={{ fontSize: '13.5px', color: '#e2e8f0', lineHeight: 1.6, marginBottom: '18px' }}>
-              <b>Abstract / Description:</b><br />
-              {selectedProject.abstract || selectedProject.description || 'No description provided.'}
+            {/* LIFECYCLE TABS */}
+            <div className="sub-tabs" style={{ marginBottom: '18px', flexWrap: 'wrap', gap: '6px' }}>
+              <div className={`sub-tab ${detailTab === 'overview' ? 'active' : ''}`} onClick={() => setDetailTab('overview')}>Overview & Health</div>
+              <div className={`sub-tab ${detailTab === 'team' ? 'active' : ''}`} onClick={() => setDetailTab('team')}>Team ({selectedProject.teamMembers?.length || 1})</div>
+              <div className={`sub-tab ${detailTab === 'milestones' ? 'active' : ''}`} onClick={() => setDetailTab('milestones')}>Milestones ({selectedProject.milestones?.length || 0})</div>
+              <div className={`sub-tab ${detailTab === 'weekly' ? 'active' : ''}`} onClick={() => setDetailTab('weekly')}>Weekly Progress (Week {selectedProject.currentWeekNumber || 4})</div>
+              <div className={`sub-tab ${detailTab === 'artifacts' ? 'active' : ''}`} onClick={() => setDetailTab('artifacts')}>Artifacts & Links</div>
+              <div className={`sub-tab ${detailTab === 'feedback' ? 'active' : ''}`} onClick={() => setDetailTab('feedback')}>Faculty Feedback</div>
             </div>
 
-            <div style={{ marginBottom: '18px' }}>
-              <b>Technologies Used:</b>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
-                {(selectedProject.tech || []).map((t, idx) => (
-                  <span key={idx} className="badge badge-gray">{t}</span>
-                ))}
+            {/* TAB: OVERVIEW & HEALTH */}
+            {detailTab === 'overview' && (
+              <div>
+                <div className="card" style={{ padding: '18px', marginBottom: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+                  <h4 style={{ margin: '0 0 8px', fontSize: '15px', color: '#fff' }}>Project Abstract & Objectives</h4>
+                  <p style={{ fontSize: '13.5px', color: '#e2e8f0', lineHeight: 1.6, margin: 0 }}>
+                    {selectedProject.abstract}
+                  </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                  <div className="card" style={{ padding: '16px', border: '1px solid var(--border)' }}>
+                    <h4 style={{ margin: '0 0 10px', fontSize: '14px', color: '#fff' }}>Project Overall Progress</h4>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div className="progress-track" style={{ flex: 1, height: '10px' }}>
+                        <div className="progress-fill" style={{ width: `${selectedProject.overallProgress || 60}%` }}></div>
+                      </div>
+                      <b style={{ fontSize: '16px', color: '#fff' }}>{selectedProject.overallProgress || 60}%</b>
+                    </div>
+                  </div>
+
+                  <div className="card" style={{ padding: '16px', border: '1px solid var(--border)' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '14px', color: '#fff' }}>Faculty Mentorship Status</h4>
+                    <div style={{ fontSize: '13px', color: 'var(--muted)' }}>
+                      Guide: <b style={{ color: '#fff' }}>{selectedProject.facultyGuide?.name || 'Unassigned'}</b>
+                    </div>
+                    <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                      Mentorship Status: <span className="badge badge-green">{selectedProject.facultyGuide?.status || 'FACULTY_CONFIRMED'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {currentUser?.role === 'Faculty' && selectedProject.status !== 'COMPLETED' && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                    <button className="btn btn-primary" onClick={handleCompleteProject}>
+                      <Icon name="check" size={16} /> Mark Project Official COMPLETED
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            <div style={{ marginBottom: '18px' }}>
-              <b>Verified Repository & Links:</b>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px', fontSize: '13px' }}>
-                {selectedProject.github && <a href={selectedProject.github} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="folder" size={14} /> GitHub Code</a>}
-                {selectedProject.doc && <a href={selectedProject.doc} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="book" size={14} /> Documentation</a>}
-                {selectedProject.ppt && <a href={selectedProject.ppt} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="award" size={14} /> Presentation (PPT)</a>}
-                {selectedProject.cert && <a href={selectedProject.cert} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="award" size={14} /> Certificate</a>}
-                {selectedProject.demo && <a href={selectedProject.demo} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="eye" size={14} /> Demo Video</a>}
-                {selectedProject.vercel && <a href={selectedProject.vercel} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}><Icon name="trend" size={14} /> Vercel Link</a>}
-              </div>
-            </div>
-
-            {selectedProject.files && selectedProject.files.length > 0 && (
-              <div style={{ marginBottom: '18px' }}>
-                <b>Uploaded Artifacts & Files:</b>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', fontSize: '12.5px' }}>
-                  {selectedProject.files.map((f, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--muted)' }}>
-                      <Icon name="folder" size={13} /> {f.fileName} ({f.fileType})
+            {/* TAB: TEAM MEMBERS & ROLES */}
+            {detailTab === 'team' && (
+              <div>
+                <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#fff' }}>Project Team Members & Responsibilities</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(selectedProject.teamMembers || []).map((m, idx) => (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <b style={{ color: '#fff', fontSize: '14.5px' }}>{m.name}</b> <span style={{ color: '#34d399', fontSize: '12.5px', fontWeight: 600 }}>({m.role})</span>
+                        <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+                          Reg No: {m.regNo || '2026CS101'} &middot; Dept: {m.dept} &middot; {m.email}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            <div style={{ marginBottom: '18px', fontSize: '14px', color: '#cbd5e1' }}>
-              <b>Collaborators:</b> {selectedProject.collaborators && selectedProject.collaborators.length ? selectedProject.collaborators.join(', ') : 'None'}
-            </div>
+            {/* TAB: MILESTONES MANAGEMENT */}
+            {detailTab === 'milestones' && (
+              <div>
+                <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#fff' }}>Project Milestones & Task Progress</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {(selectedProject.milestones || []).map((m) => (
+                    <div key={m.id} style={{ background: 'rgba(255,255,255,0.03)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div>
+                          <b style={{ color: '#fff', fontSize: '14.5px' }}>{m.title}</b>
+                          <div style={{ fontSize: '12px', color: 'var(--muted)' }}>{m.description} &middot; Deadline: <b>{m.deadline}</b></div>
+                        </div>
+                        <span className={`badge ${m.status === 'COMPLETED' ? 'badge-green' : m.status === 'OVERDUE' ? 'badge-red' : 'badge-yellow'}`}>
+                          {m.status}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Progress:</span>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={m.progress}
+                          onChange={(e) => handleUpdateMilestoneProgress(m.id, e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <b style={{ color: '#fff', fontSize: '13px', width: '40px' }}>{m.progress}%</b>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            {selectedProject.enhancements && selectedProject.enhancements.length > 0 && (
-              <div style={{ marginBottom: '18px', background: 'rgba(16,185,129,0.06)', color: '#34d399', borderRadius: '10px', padding: '12px', fontSize: '13.5px', border: '1px solid rgba(16,185,129,0.15)' }}>
-                <b>Approved Enhancements:</b>
-                {selectedProject.enhancements.map((e, idx) => (
-                  <div key={idx} style={{ marginTop: '4px', borderTop: '1px solid rgba(16,185,129,0.15)', paddingTop: '4px' }}>
-                    <b>{e.title}</b> by {e.author}: {e.details}
+            {/* TAB: WEEKLY PROGRESS TIMELINE */}
+            {detailTab === 'weekly' && (() => {
+              const currentWeek = selectedProject.currentWeekNumber || 1;
+              const curReport = (selectedProject.weeklyReports || []).find(w => w.weekNumber === currentWeek);
+              const todayStr = new Date().toISOString().split('T')[0];
+              const dueDate = curReport?.dueDate || selectedProject.weeklyCycle?.dueDate;
+              const isOverdue = (dueDate && todayStr > dueDate) || curReport?.submissionStatus === 'OVERDUE';
+              const maxWeeks = Math.max(currentWeek, selectedProject.weeklyReports?.length || 1);
+              const weekNumbers = Array.from({ length: maxWeeks }, (_, i) => i + 1);
+
+              return (
+                <div>
+                  {/* WEEKLY TIMELINE BUTTONS */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+                    {weekNumbers.map(wNum => {
+                      const isCurrent = currentWeek === wNum;
+                      const rep = (selectedProject.weeklyReports || []).find(w => w.weekNumber === wNum);
+                      return (
+                        <div
+                          key={wNum}
+                          style={{
+                            padding: '8px 16px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700, cursor: 'pointer',
+                            background: isCurrent ? 'var(--accent-grad)' : rep?.submissionStatus === 'REVIEWED' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.04)',
+                            color: isCurrent ? '#fff' : rep?.submissionStatus === 'REVIEWED' ? '#34d399' : 'var(--muted)',
+                            border: isCurrent ? '1px solid #818cf8' : '1px solid var(--border)'
+                          }}
+                        >
+                          Week {wNum} {rep?.submissionStatus === 'REVIEWED' ? '✓' : ''}
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  {/* LATE SUBMISSION CALLOUT FOR OVERDUE */}
+                  {isOverdue && (!curReport || curReport.submissionStatus === 'PENDING' || curReport.submissionStatus === 'OVERDUE') && (
+                    <div style={{ background: 'rgba(244,63,94,0.12)', border: '1px solid #f43f5e', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                      <b style={{ color: '#f43f5e', fontSize: '13.5px' }}>⚠️ Overdue Submission Warning</b>
+                      <p style={{ fontSize: '12.5px', color: '#fca5a5', margin: '4px 0 10px' }}>
+                        This submission is past the due date ({dueDate}). A mandatory explanation for late submission is required for faculty approval.
+                      </p>
+                      <div className="field" style={{ margin: 0 }}>
+                        <label style={{ color: '#fca5a5' }}>Reason for Late Submission *</label>
+                        <textarea
+                          required
+                          rows="2"
+                          style={{ background: '#0f172a', color: '#fff', border: '1px solid #f43f5e', borderRadius: '6px', padding: '8px' }}
+                          value={weeklyLateReason}
+                          onChange={(e) => setWeeklyLateReason(e.target.value)}
+                          placeholder="Provide detailed reason for submitting past deadline..."
+                        ></textarea>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* WEEKLY PROGRESS REPORT FORM / VIEW */}
+                  <form onSubmit={handleSubmitWeeklyProgressReport} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div className="field"><label>What was planned this week?</label><textarea required rows="2" value={weeklyPlanned} onChange={(e) => setWeeklyPlanned(e.target.value)}></textarea></div>
+                      <div className="field"><label>What was completed?</label><textarea required rows="2" value={weeklyCompleted} onChange={(e) => setWeeklyCompleted(e.target.value)}></textarea></div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                      <div className="field"><label>What are you currently working on?</label><textarea required rows="2" value={weeklyCurrent} onChange={(e) => setWeeklyCurrent(e.target.value)}></textarea></div>
+                      <div className="field"><label>Blockers / Problems faced</label><textarea rows="2" value={weeklyBlockers} onChange={(e) => setWeeklyBlockers(e.target.value)}></textarea></div>
+                    </div>
+                    <div className="field"><label>Plan for next week</label><input required value={weeklyPlanNext} onChange={(e) => setWeeklyPlanNext(e.target.value)} /></div>
+
+                    <h5 style={{ margin: '10px 0 4px', color: '#fff' }}>Evidence & Commit Links</h5>
+                    <div className="field"><input value={weeklyGithubLink} onChange={(e) => setWeeklyGithubLink(e.target.value)} placeholder="GitHub Commit link (e.g. https://github.com/org/repo/commit/...)" /></div>
+
+                    {currentUser?.role === 'Student' && selectedProject.status !== 'COMPLETED' && (
+                      <button type="submit" className="btn btn-primary" style={{ marginTop: '10px', justifyContent: 'center' }}>
+                        <Icon name="check" size={16} /> Submit Week {currentWeek} Progress Report
+                      </button>
+                    )}
+                  </form>
+
+                  {/* FACULTY LATE REQUEST REVIEW SECTION */}
+                  {currentUser?.role === 'Faculty' && curReport?.submissionStatus === 'LATE_REQUEST_PENDING' && (
+                    <div style={{ marginTop: '20px', background: 'rgba(244,63,94,0.1)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(244,63,94,0.4)' }}>
+                      <h4 style={{ margin: '0 0 6px', color: '#f43f5e' }}>Late Submission Request Pending Review</h4>
+                      <p style={{ fontSize: '13px', color: '#e2e8f0', margin: '0 0 12px' }}>
+                        <b>Student's Reason for Late Submission:</b> "{curReport.lateReason || 'No reason specified'}"
+                      </p>
+                      <div className="field" style={{ marginBottom: '12px' }}>
+                        <label style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>Faculty Review Comment *</label>
+                        <textarea
+                          rows="2"
+                          style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px' }}
+                          value={facultyFeedbackText}
+                          onChange={(e) => setFacultyFeedbackText(e.target.value)}
+                          placeholder="Enter mandatory review feedback for this late request..."
+                        ></textarea>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn btn-danger-outline" onClick={() => handleLateRespond(false)}>
+                          REJECT LATE SUBMISSION
+                        </button>
+                        <button type="button" className="btn btn-primary" onClick={() => handleLateRespond(true)}>
+                          APPROVE LATE SUBMISSION (+5 Credits)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FACULTY STANDARD REVIEW SECTION */}
+                  {currentUser?.role === 'Faculty' && curReport?.submissionStatus === 'SUBMITTED' && (
+                    <div style={{ marginTop: '20px', background: 'rgba(99,102,241,0.08)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.3)' }}>
+                      <h4 style={{ margin: '0 0 8px', color: '#fff' }}>Faculty Review & Feedback Notes *</h4>
+                      <textarea
+                        rows="2"
+                        style={{ width: '100%', background: '#0f172a', color: '#fff', border: '1px solid var(--border)', borderRadius: '8px', padding: '10px', marginBottom: '10px' }}
+                        value={facultyFeedbackText}
+                        onChange={(e) => setFacultyFeedbackText(e.target.value)}
+                        placeholder="Enter mandatory review feedback for student team..."
+                      ></textarea>
+                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button type="button" className="btn btn-danger-outline" onClick={() => handleFacultyReviewReport(false)}>Request Changes</button>
+                        <button type="button" className="btn btn-primary" onClick={() => handleFacultyReviewReport(true)}>Approve Weekly Report (+10 Credits)</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FACULTY FEEDBACK DISPLAY CARD */}
+                  {curReport?.facultyFeedback && (
+                    <div style={{ marginTop: '20px', background: 'rgba(52,211,153,0.08)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(52,211,153,0.3)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <h4 style={{ margin: 0, color: '#34d399', fontSize: '14px', fontWeight: 700 }}>
+                          Latest Faculty Review Comment ({curReport.facultyFeedback.author || 'Faculty Guide'})
+                        </h4>
+                        <span className="badge badge-green">{curReport.submissionStatus}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>
+                        "{typeof curReport.facultyFeedback === 'string' ? curReport.facultyFeedback : curReport.facultyFeedback.text}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* REVIEW HISTORY TIMELINE */}
+                  {curReport?.reviewHistory && curReport.reviewHistory.length > 0 && (
+                    <div style={{ marginTop: '20px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                      <h4 style={{ margin: '0 0 12px', fontSize: '14px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Icon name="history" size={16} /> Review History & Audit Log
+                      </h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {curReport.reviewHistory.map((item, idx) => (
+                          <div key={item.id || idx} style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(15,23,42,0.6)', border: '1px solid rgba(255,255,255,0.05)', fontSize: '12.5px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                              <div>
+                                <b style={{ color: '#fff' }}>{item.author}</b> <span style={{ color: 'var(--muted)' }}>({item.authorRole || 'User'})</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {item.creditPoints > 0 && (
+                                  <span style={{ color: '#34d399', fontWeight: 700 }}>+{item.creditPoints} Credits</span>
+                                )}
+                                <span className={`badge ${item.decision.includes('APPROVED') ? 'badge-green' : item.decision.includes('REJECTED') || item.decision === 'CHANGES_REQUESTED' ? 'badge-red' : 'badge-blue'}`}>
+                                  {item.decision}
+                                </span>
+                                <span style={{ color: 'var(--muted)', fontSize: '11px' }}>{new Date(item.timestamp).toLocaleString()}</span>
+                              </div>
+                            </div>
+                            <div style={{ color: '#cbd5e1', fontStyle: item.comment ? 'normal' : 'italic' }}>
+                              {item.comment ? `"${item.comment}"` : 'No comment recorded.'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* TAB: ARTIFACTS & LINKS */}
+            {detailTab === 'artifacts' && (
+              <div>
+                <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#fff' }}>Project Deliverables & Artifacts</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="card" style={{ padding: '14px', fontSize: '13px' }}>
+                    <div style={{ color: 'var(--muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="folder" size={16} /> GitHub Source Code Repository
+                    </div>
+                    {selectedProject.github ? (
+                      <a href={selectedProject.github} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', fontWeight: 600, wordBreak: 'break-all' }}>
+                        {selectedProject.github}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="card" style={{ padding: '14px', fontSize: '13px' }}>
+                    <div style={{ color: 'var(--muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="book" size={16} /> Documentation (SRS Report)
+                    </div>
+                    {selectedProject.doc ? (
+                      <a href={selectedProject.doc} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', fontWeight: 600, wordBreak: 'break-all' }}>
+                        {selectedProject.doc}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="card" style={{ padding: '14px', fontSize: '13px' }}>
+                    <div style={{ color: 'var(--muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="award" size={16} /> Presentation (PPT)
+                    </div>
+                    {selectedProject.ppt ? (
+                      <a href={selectedProject.ppt} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', fontWeight: 600, wordBreak: 'break-all' }}>
+                        {selectedProject.ppt}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="card" style={{ padding: '14px', fontSize: '13px' }}>
+                    <div style={{ color: 'var(--muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="eye" size={16} /> Demo Video Link
+                    </div>
+                    {selectedProject.demo ? (
+                      <a href={selectedProject.demo} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', fontWeight: 600, wordBreak: 'break-all' }}>
+                        {selectedProject.demo}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="card" style={{ padding: '14px', fontSize: '13px' }}>
+                    <div style={{ color: 'var(--muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="trend" size={16} /> Vercel / Live Deployment
+                    </div>
+                    {selectedProject.vercel ? (
+                      <a href={selectedProject.vercel} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', fontWeight: 600, wordBreak: 'break-all' }}>
+                        {selectedProject.vercel}
+                      </a>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Not provided</span>
+                    )}
+                  </div>
+
+                  <div className="card" style={{ padding: '14px', fontSize: '13px' }}>
+                    <div style={{ color: 'var(--muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Icon name="file" size={16} /> Uploaded Files
+                    </div>
+                    {selectedProject.files && selectedProject.files.length > 0 ? (
+                      <div style={{ color: '#38bdf8' }}>{selectedProject.files.length} file(s) uploaded</div>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>Not provided</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: FACULTY FEEDBACK */}
+            {detailTab === 'feedback' && (
+              <div>
+                <h4 style={{ margin: '0 0 12px', fontSize: '15px', color: '#fff' }}>Faculty Feedback History</h4>
+                {(selectedProject.weeklyReports || []).map((w, idx) => (
+                  w.facultyFeedback ? (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px', marginBottom: '10px', border: '1px solid var(--border)' }}>
+                      <b style={{ color: '#38bdf8' }}>Week {w.weekNumber} Feedback</b> by {w.facultyFeedback.author}
+                      <p style={{ margin: '4px 0 0', color: '#e2e8f0', fontSize: '13px' }}>"{w.facultyFeedback.text}"</p>
+                    </div>
+                  ) : null
                 ))}
               </div>
             )}
 
-            <div className="modal-actions" style={{ marginTop: '18px', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '12px', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button className="btn btn-primary btn-sm" onClick={(e) => handleOpenCloneModal(e, selectedProject)}><Icon name="folder" size={14} /> Clone / Fork Project</button>
-                <button className="btn btn-outline btn-sm" onClick={handleOpenReportModal}><Icon name="bell" size={14} /> Report Project</button>
-                {currentUser?.role === 'Student' && currentUser?.name !== selectedProject.author && !(selectedProject.collaborators || []).includes(currentUser?.name) && (
-                  <button className="btn btn-primary btn-sm" onClick={() => handleRequestCollab(selectedProject.id)}><Icon name="plus" size={14} /> Request Collaboration</button>
-                )}
-                {currentUser?.role === 'Student' && (selectedProject.collaborators || []).includes(currentUser?.name) && (
-                  <button className="btn btn-primary btn-sm" onClick={() => setModal('enhancement')}><Icon name="plus" size={14} /> Submit Enhancement</button>
-                )}
-                {currentUser?.role === 'Administrator' && (
-                  <button className="btn btn-danger-outline btn-sm" onClick={(e) => handleDeleteProject(e, selectedProject.id)}>Delete Project (Admin)</button>
-                )}
-              </div>
-              <button type="button" className="btn btn-outline btn-sm" onClick={() => setModal(null)}>Close</button>
+            <div className="modal-actions" style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+              <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Close Workspace</button>
             </div>
-
-            <div className="comment-section">
-              <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#fff' }}>
-                <span>Comments ({selectedProject.comments ? selectedProject.comments.length : 0})</span>
-              </div>
-              <div className="comment-list">
-                {selectedProject.comments && selectedProject.comments.length ? (
-                  selectedProject.comments.map((c, idx) => (
-                    <div key={idx} className="comment-bubble">
-                      <div className="comment-author">{c.author}<span className="comment-time">{c.time}</span></div>
-                      <div className="comment-text">{c.text}</div>
-                    </div>
-                  ))
-                ) : (
-                  <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: 0 }}>No comments yet.</p>
-                )}
-              </div>
-              {currentUser && (
-                <form className="comment-form" onSubmit={handlePostComment}>
-                  <textarea
-                    required
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Add a comment..."
-                  ></textarea>
-                  <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '6px 12px', height: '40px' }}>Post</button>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: ENHANCEMENT */}
-      {modal === 'enhancement' && selectedProject && (
-        <div className="overlay" onClick={(e) => e.target === e.currentTarget && setModal(null)}>
-          <div className="modal">
-            <h3>Submit Project Enhancement</h3>
-            <p className="hint">Propose code improvements on "{selectedProject.title}" for guide review.</p>
-            <form onSubmit={handleSubmitEnhancement}>
-              <div className="field"><label>Enhancement Title</label><input required value={enhTitle} onChange={(e) => setEnhTitle(e.target.value)} placeholder="e.g. Added face spoofing detection" /></div>
-              <div className="field"><label>Details of Enhancement</label><textarea required value={enhDetails} onChange={(e) => setEnhDetails(e.target.value)} rows="3" placeholder="Explain your code improvements..."></textarea></div>
-              <div className="field"><label>Pull Request / Code Link</label><input required value={enhLink} onChange={(e) => setEnhLink(e.target.value)} placeholder="https://github.com/.../pull/..." /></div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Submit for Faculty Review</button>
-              </div>
-            </form>
           </div>
         </div>
       )}

@@ -15,9 +15,9 @@ export default function LandingPage() {
           <span className="brand" style={{ fontSize: '18px', fontWeight: 700 }}>ProjectHub</span>
         </div>
         <nav className="landing-nav">
-          <a onClick={() => navigate('/login')}>Features</a>
-          <a onClick={() => navigate('/login')}>Workflow</a>
-          <a onClick={() => navigate('/login')}>Leaderboard</a>
+          <a onClick={() => navigate('/login')}>Lifecycle Workflow</a>
+          <a onClick={() => navigate('/login')}>Weekly Tracking</a>
+          <a onClick={() => navigate('/login')}>Faculty Mentorship</a>
         </nav>
         <div className="landing-actions">
           <a className="signin" onClick={() => navigate('/login')}>Sign in</a>
@@ -27,17 +27,21 @@ export default function LandingPage() {
 
       <section className="hero">
         <div>
-          <div className="eyebrow"><Icon name="bulb" size={14} /> Built for academic excellence</div>
-          <h1>Showcase your projects.<br />Earn recognition.</h1>
-          <p className="lead">The all-in-one platform for students to submit academic and external projects, publish ideas, collaborate with peers, and build a verified portfolio — all while earning credit points.</p>
+          <div className="eyebrow"><Icon name="bulb" size={14} /> Academic Project Development & Lifecycle Management Platform</div>
+          <h1 style={{ fontSize: '38px', lineHeight: 1.15 }}>
+            Plan your project.<br />Track your progress.<br />Build together.<br />Complete with confidence.
+          </h1>
+          <p className="lead">
+            ProjectHub helps student teams manage their complete project journey — from registration and team formation to milestone planning, weekly progress tracking, faculty guidance, review, and final completion.
+          </p>
           <div className="hero-cta">
-            <button className="btn btn-primary" onClick={() => navigate('/login')}>Explore Dashboard <Icon name="arrow" size={15} /></button>
-            <button className="btn btn-outline" onClick={() => navigate('/login')}>Browse Projects</button>
+            <button className="btn btn-primary" onClick={() => navigate('/login')}>Launch Workspace <Icon name="arrow" size={15} /></button>
+            <button className="btn btn-outline" onClick={() => navigate('/login')}>Explore Lifecycle Workflow</button>
           </div>
           <div className="hero-check">
-            <span><Icon name="check" size={15} /> Faculty verified</span>
-            <span><Icon name="check" size={15} /> Credit points</span>
-            <span><Icon name="check" size={15} /> Collaboration ready</span>
+            <span><Icon name="check" size={15} /> Faculty Mentorship</span>
+            <span><Icon name="check" size={15} /> Weekly Progress Reports</span>
+            <span><Icon name="check" size={15} /> Milestone Audits</span>
           </div>
         </div>
         <div className="hero-art">
@@ -54,24 +58,24 @@ export default function LandingPage() {
 
       <div className="stats-strip">
         <div className="stats-inner">
-          <div><div className="num">1,240+</div><div className="lab">Projects Submitted</div></div>
-          <div><div className="num">86</div><div class="lab">Faculty Reviewers</div></div>
-          <div><div className="num">5,200+</div><div className="lab">Student Users</div></div>
-          <div><div className="num">98%</div><div className="lab">Approval Rate</div></div>
+          <div><div className="num">1,240+</div><div className="lab">Active Projects</div></div>
+          <div><div className="num">86</div><div className="lab">Faculty Mentors</div></div>
+          <div><div className="num">5,200+</div><div className="lab">Student Developers</div></div>
+          <div><div className="num">98%</div><div className="lab">On-Time Completion</div></div>
         </div>
       </div>
 
       <section className="feat-section">
-        <h2>Everything you need to manage student projects</h2>
-        <p>From submission to showcase, every workflow is designed to keep quality high and collaboration flowing.</p>
+        <h2>End-to-End Academic Project Operating System</h2>
+        <p>From initial registration to final milestone verification, every stage keeps development structured and transparent.</p>
         <div className="feat-grid">
           {[
-            ['folder', 'Project Repositories', 'Separate spaces for internal academic projects, external showcases, and raw project ideas.'],
-            ['shield', 'Faculty Verification', 'Automatic reviewer assignment for internal projects and guided approval for external work.'],
-            ['award', 'Credit Point System', 'Earn points for approved projects, published ideas, and collaboration — then unlock repository access.'],
-            ['users', 'Collaboration', 'Request access to existing projects, propose enhancements, and share credit with contributors.'],
-            ['trophy', 'Leaderboards', 'Rankings by total credit points, approved projects, department, and academic year.'],
-            ['search2', 'Smart Discovery', 'Search and filter projects by title, domain, technology, department, and popularity.'],
+            ['folder', 'Project Registration', 'Register projects at the start of the semester with initial specs and repository links.'],
+            ['users', 'Team Formation & Roles', 'Form teams with student register number lookups and define member roles.'],
+            ['chat', 'Faculty Guide Selection', 'Directly search and request faculty mentors who guide development from start to finish.'],
+            ['chart', 'Milestone Management', 'Break projects down into clear milestones with deadlines and progress calculation.'],
+            ['clock', 'Weekly Progress Tracking', 'Submit weekly progress reports, individual contributions, blockers, and commit evidence.'],
+            ['shield', 'Audit & Final Verification', 'Faculty reviews weekly reports, provides feedback, and approves final project artifacts.'],
           ].map(([ic, t, d], i) => (
             <div key={i} className="card feat-card"><div className="icon"><Icon name={ic} size={18} /></div><h3>{t}</h3><p>{d}</p></div>
           ))}
@@ -79,26 +83,26 @@ export default function LandingPage() {
       </section>
 
       <section className="how-section">
-        <h2>How it works</h2>
+        <h2>Complete Project Lifecycle</h2>
         <div className="how-grid">
           {[
-            ['Submit or publish', 'Share an academic project, an external build, or a raw idea in minutes.'],
-            ['Get verified', 'Faculty reviewers check internal work; ideas go live instantly for peer feedback.'],
-            ['Earn credits', 'Approved projects and published ideas earn credit points automatically.'],
-            ['Unlock & rank', 'Spend credits to unlock repository tiers and climb the department leaderboard.'],
+            ['Register & Form Team', 'Register project details, search student database by regNo, and assign team roles.'],
+            ['Select Faculty Guide', 'Select an available faculty guide in your domain to mentor your project development.'],
+            ['Plan Milestones', 'Set up milestone deadlines and assign responsibilities to team members.'],
+            ['Weekly Progress & Feedback', 'Submit weekly progress reports, attach commit evidence, and receive faculty review.'],
           ].map(([t, d], i) => (
-            <div key={i} className="how-step"><div className="n">STEP {i + 1}</div><h4>{t}</h4><p>{d}</p></div>
+            <div key={i} className="how-step"><div className="n">STAGE {i + 1}</div><h4>{t}</h4><p>{d}</p></div>
           ))}
         </div>
       </section>
 
       <section className="cta-final">
-        <h2>Ready to build your verified portfolio?</h2>
-        <p>Join thousands of students already earning recognition for their work.</p>
-        <button className="btn btn-primary" onClick={() => navigate('/login')}>Get Started for free <Icon name="arrow" size={15} /></button>
+        <h2>Ready to manage your academic project journey?</h2>
+        <p>Join thousands of student developers building structured, faculty-guided projects.</p>
+        <button className="btn btn-primary" onClick={() => navigate('/login')}>Get Started <Icon name="arrow" size={15} /></button>
       </section>
 
-      <footer className="landing-footer">&copy; 2026 ProjectHub. Built for academic excellence.</footer>
+      <footer className="landing-footer">&copy; 2026 ProjectHub — Academic Project Development & Lifecycle Platform.</footer>
     </div>
   );
 }
