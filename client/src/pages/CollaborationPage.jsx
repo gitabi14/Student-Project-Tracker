@@ -81,14 +81,13 @@ export default function CollaborationPage() {
         {myCollabs.length ? (
           <table>
             <thead>
-              <tr><th>Project</th><th>Your Role</th><th>Collaborators</th><th>Actions</th></tr>
+              <tr><th>Project</th><th>Your Role</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {myCollabs.map((c) => (
                 <tr key={c.id}>
                   <td style={{ fontWeight: 600, color: '#fff' }}>{c.title}</td>
                   <td><span className={`badge ${c.role === 'Owner' ? 'badge-green' : 'badge-blue'}`}>{c.role}</span></td>
-                  <td>{c.collaborators.length ? c.collaborators.join(', ') : 'None'}</td>
                   <td>
                     <button className="btn btn-outline btn-sm" onClick={() => showToast('Invite link copied to clipboard!')}>Invite</button>
                   </td>

@@ -21,19 +21,6 @@ ProjectHub is a comprehensive academic project lifecycle management platform des
 
 ---
 
-## 👥 Team Details (Team Codexx)
-
-| Role | Member Name | Register Number | Email |
-| :--- | :--- | :--- | :--- |
-| **Team Lead** | **Aarthi S** | `7376241CS102` | `aarthis.cs24@bitsathy.ac.in` |
-| **Member 1** | **Swathi S** | `7376241CS427` | `swathis.cs24@bitsathy.ac.in` |
-| **Member 2** | **Abishek R** | `7376241CS111` | `abishekr.cs24@bitsathy.ac.in` |
-| **Member 3** | **K S Ragul Rakav** | `7376241CS221` | `ksragulrakav.cs24@bitsathy.ac.in` |
-
-*For complete team details, see [`TEAM_DETAILS.md`](TEAM_DETAILS.md).*
-
----
-
 ## 🚀 Complete Student Project Development Lifecycle
 
 ```
