@@ -16,7 +16,7 @@
 | **Team Lead** | **Aarthi S** | `7376241CS102` | `aarthis.cs24@bitsathy.ac.in` |
 | **Member 1** | **Swathi S** | `7376241CS427` | `swathis.cs24@bitsathy.ac.in` |
 | **Member 2** | **Abishek R** | `7376241CS111` | `abishekr.cs24@bitsathy.ac.in` |
-| **Member 3** | **K S Ragul Rakav** | `7376241CS221` | `ksragulrakav.cs24@bitsathy.ac.in` |
+
 
 ---
 
