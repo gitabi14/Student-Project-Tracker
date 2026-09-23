@@ -14,10 +14,30 @@ ProjectHub is a comprehensive academic project lifecycle management platform des
 
 ---
 
-### 🌐 GitHub Repository
-- **Repository URL**: [https://github.com/gitabi14/Student-Project-Tracker.git](https://github.com/gitabi14/Student-Project-Tracker.git)
+### 🌐 Live Platform Deployment & Links
+- **🚀 Live Deployed Web App**: [https://student-project-tracker-zeta.vercel.app/](https://student-project-tracker-zeta.vercel.app/)
+- **📦 GitHub Repository**: [https://github.com/gitabi14/Student-Project-Tracker.git](https://github.com/gitabi14/Student-Project-Tracker.git)
 
 </div>
+
+---
+
+## 📸 Application Showcase & Screenshots
+
+### 1. Student Lifecycle Dashboard & Real-Time Notifications
+![Student Lifecycle Dashboard](docs/screenshots/dashboard.png)
+
+### 2. Project Workspaces, Repositories & Milestone Tracking
+![Project Workspaces](docs/screenshots/projects_workspace.png)
+
+### 3. Faculty Mentorship Requests & Inspection Workspace
+![Faculty Guide Mentorship Requests](docs/screenshots/faculty_mentorship_requests.png)
+
+### 4. Public Student Idea Bar & Role-Based Team Recruitment
+![Public Student Idea Bar & Team Recruitment](docs/screenshots/idea_bar_recruitment.png)
+
+### 5. Institutional Admin Governance & Student Directory Management
+![Admin Governance & Student Directory](docs/screenshots/admin_governance.png)
 
 ---
 
